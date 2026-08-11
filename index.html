@@ -117,6 +117,7 @@ body {
   white-space: nowrap;
 }
 #demobar .db-brand { color: #9be49b; font: 700 9.5px/12px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; flex: 0 0 auto; }
+#demobar .db-ver { color: rgba(255, 255, 255, 0.45); font: 700 9.5px/12px ui-monospace, SFMono-Regular, Menlo, monospace; flex: 0 0 auto; }
 #demobar .db-flow { color: rgba(255, 255, 255, 0.65); flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 #demobar .db-sep { flex: 1 0 4px; }
 #demobar .jump, #demobar button { flex: 0 0 auto; }
@@ -984,6 +985,7 @@ body:not([data-connected="1"]) .post-c { display: none !important; }
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
+    <span class="db-ver">v3</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <span class="jump"><svg class="heavy-ic" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.9 12.4a.5.5 0 0 0 .4.8H11l-1.8 8.2c-.1.5.6.8.9.4l8.1-10.4a.5.5 0 0 0-.4-.8H13l1.8-8.2c.1-.5-.6-.8-.9-.4z"/></svg>heavy <b id="hud-heavy">0</b></span>
@@ -2055,6 +2057,13 @@ document.addEventListener('click', (e) => {
 });
 // iOS :active reliability
 document.addEventListener('touchstart', () => {}, { passive: true });
+// iOS Safari does NOT synthesize `click` for a tap on a plain element when the
+// only listener sits on document — the tap dies silently (PO's "click wallet
+// nothing works"). A direct no-op click listener on each target makes Safari
+// dispatch a real bubbling click, which the delegated handler above receives.
+// All targets are static DOM, so one boot-time pass covers everything.
+const tapFix = () => {};
+$$('[data-action],[data-goto]').forEach((el) => el.addEventListener('click', tapFix));
 
 renderHud();
 go('browse');
