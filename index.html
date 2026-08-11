@@ -995,7 +995,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v5</span>
+    <span class="db-ver">v6</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <span class="jump"><svg class="heavy-ic" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.9 12.4a.5.5 0 0 0 .4.8H11l-1.8 8.2c-.1.5.6.8.9.4l8.1-10.4a.5.5 0 0 0-.4-.8H13l1.8-8.2c.1-.5-.6-.8-.9-.4z"/></svg>heavy <b id="hud-heavy">0</b></span>
@@ -1667,6 +1667,10 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 </div>
 
 <script>
+/* IIFE: wallet extensions (Phantom, Brave Wallet, MetaMask) declare globals like
+   phantom/solana/ethereum in the page scope - top-level const would collide
+   and kill the whole script with a SyntaxError. Function scope is collision-proof. */
+(function () {
 'use strict';
 /* Swapped SDK Flow Feel Test — state engine.
    Layers: #app-merchant (site + desktop sidebar/topbar), #app-phantom
@@ -2106,6 +2110,7 @@ renderHud();
 go('browse');
 window.__FLOWFEEL_BOOTED = true; // diagnostics: the end-of-body check looks for this
 
+})();
 </script>
 <script>
 /* diagnostics: if the app script died or the download was cut short, say so visibly */
