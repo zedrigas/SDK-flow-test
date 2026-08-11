@@ -981,11 +981,21 @@ body:not([data-connected="1"]) .post-c { display: none !important; }
 </style>
 </head>
 <body>
+<script>
+/* diagnostics: collect errors before the app script runs */
+window.__ffErrs = [];
+window.onerror = function (m, s, l, c) { window.__ffErrs.push(m + ' @' + l + ':' + c); if (window.__ffShow) window.__ffShow(); return false; };
+</script>
+<noscript>
+<div style="position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#7f1d1d;color:#fff;font:600 13px/18px ui-monospace,Menlo,monospace;padding:12px 16px;text-align:center">
+JavaScript is blocked in this browser. In Brave: click the lion icon and allow scripts for this site, then reload.
+</div>
+</noscript>
 <div id="stage">
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v4</span>
+    <span class="db-ver">v5</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <span class="jump"><svg class="heavy-ic" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.9 12.4a.5.5 0 0 0 .4.8H11l-1.8 8.2c-.1.5.6.8.9.4l8.1-10.4a.5.5 0 0 0-.4-.8H13l1.8-8.2c.1-.5-.6-.8-.9-.4z"/></svg>heavy <b id="hud-heavy">0</b></span>
@@ -2094,7 +2104,29 @@ document.addEventListener('touchend', (e) => {
 
 renderHud();
 go('browse');
+window.__FLOWFEEL_BOOTED = true; // diagnostics: the end-of-body check looks for this
 
+</script>
+<script>
+/* diagnostics: if the app script died or the download was cut short, say so visibly */
+(function () {
+  function show() {
+    var el = document.getElementById('ff-diag');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'ff-diag';
+      el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#7f1d1d;color:#fff;font:600 12px/16px ui-monospace,Menlo,monospace;padding:10px 14px;white-space:pre-wrap;text-align:center';
+      document.body.appendChild(el);
+    }
+    el.textContent = window.__FLOWFEEL_BOOTED
+      ? 'JS error: ' + window.__ffErrs.join(' | ')
+      : (window.__ffErrs.length
+        ? 'Boot failed: ' + window.__ffErrs.join(' | ')
+        : 'Page did not load fully (incomplete download or script blocked). Hard-reload: Cmd+Shift+R.');
+  }
+  window.__ffShow = show;
+  if (!window.__FLOWFEEL_BOOTED || window.__ffErrs.length) show();
+})();
 </script>
 </body>
 </html>
