@@ -1644,11 +1644,11 @@ async function startWcPairing() {
       $('#wc-link-trust').onclick = () => R.jumps.expect('light', 'C · session approval round trip');
       $('#wc-link-phantom').onclick = () => R.jumps.expect('light', 'C · session approval round trip');
       $('#wc-links').classList.add('show');
-      wcStatus('Open your wallet and approve the session. Links expire in ~5 minutes.');
+      wcStatus('Use Trust Wallet — Phantom and MetaMask cannot approve Solana sessions (confirmed). Links expire in ~5 minutes.');
     } else {
       $('#wc-qr').innerHTML = R.wc.qrSvg(uri, 240);
       $('#wc-qr').classList.add('show');
-      wcStatus('Scan with Trust Wallet (or try Phantom). QR expires in ~5 minutes.');
+      wcStatus('Scan with Trust Wallet. (Confirmed: Phantom rejects the QR; MetaMask pairs then hangs — neither speaks Solana over WalletConnect.) QR expires in ~5 minutes.');
     }
     const session = await approval();
     const wallet = R.wc.accountFromSession(session);
