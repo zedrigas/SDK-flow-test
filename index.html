@@ -985,7 +985,7 @@ body:not([data-connected="1"]) .post-c { display: none !important; }
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v3</span>
+    <span class="db-ver">v4</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <span class="jump"><svg class="heavy-ic" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.9 12.4a.5.5 0 0 0 .4.8H11l-1.8 8.2c-.1.5.6.8.9.4l8.1-10.4a.5.5 0 0 0-.4-.8H13l1.8-8.2c.1-.5-.6-.8-.9-.4z"/></svg>heavy <b id="hud-heavy">0</b></span>
@@ -2048,22 +2048,49 @@ const ACTIONS = {
   'close-sheet'() { showSheet(null); },
 };
 
-document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-goto],[data-action]');
-  if (!t) return;
+function dispatch(t) {
   const act = t.dataset.action;
   if (act && ACTIONS[act]) return ACTIONS[act]();
   if (t.dataset.goto) go(t.dataset.goto);
+}
+
+/* Two independent tap paths — iOS Safari kills either one alone:
+   1. Native click. Safari only synthesizes it for taps when the element has a
+      DIRECT click listener (document-level delegation is not enough), so every
+      [data-action]/[data-goto] element gets a no-op listener at boot.
+   2. touchend fallback. If no native click arrives shortly after a clean tap
+      (short, single-finger, no movement), dispatch from the touch coordinates.
+   The two dedupe against each other via timestamps — one tap, one dispatch. */
+let lastNativeClick = 0, lastFallback = 0, tsX = 0, tsY = 0, tsAt = 0, tapTimer = 0;
+
+document.addEventListener('click', (e) => {
+  lastNativeClick = Date.now();
+  if (lastNativeClick - lastFallback < 600) return; // fallback already handled this tap
+  const t = e.target.closest('[data-goto],[data-action]');
+  if (t) dispatch(t);
 });
-// iOS :active reliability
-document.addEventListener('touchstart', () => {}, { passive: true });
-// iOS Safari does NOT synthesize `click` for a tap on a plain element when the
-// only listener sits on document — the tap dies silently (PO's "click wallet
-// nothing works"). A direct no-op click listener on each target makes Safari
-// dispatch a real bubbling click, which the delegated handler above receives.
-// All targets are static DOM, so one boot-time pass covers everything.
 const tapFix = () => {};
 $$('[data-action],[data-goto]').forEach((el) => el.addEventListener('click', tapFix));
+
+document.addEventListener('touchstart', (e) => {
+  tsAt = e.touches.length === 1 ? Date.now() : 0;
+  if (tsAt) { tsX = e.touches[0].clientX; tsY = e.touches[0].clientY; }
+}, { passive: true });
+document.addEventListener('touchend', (e) => {
+  if (!tsAt || e.touches.length) return;
+  const dur = Date.now() - tsAt; tsAt = 0;
+  const c = e.changedTouches[0];
+  if (dur > 500 || Math.abs(c.clientX - tsX) > 12 || Math.abs(c.clientY - tsY) > 12) return; // scroll or long-press
+  const under = document.elementFromPoint(c.clientX, c.clientY);
+  const t = under && under.closest('[data-goto],[data-action]');
+  if (!t) return;
+  clearTimeout(tapTimer);
+  tapTimer = setTimeout(() => {
+    if (Date.now() - lastNativeClick < 500) return; // native click already ran
+    lastFallback = Date.now();
+    dispatch(t);
+  }, 140);
+}, { passive: true });
 
 renderHud();
 go('browse');
