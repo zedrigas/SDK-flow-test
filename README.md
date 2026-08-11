@@ -1,20 +1,45 @@
-# SDK Flow Feel — 3 mobile payment flows
+# NOVA Flow Feel — 3 REAL wallet flows (no Swapped SDK)
 
-Interactive iPhone prototype simulating three integration shapes for the future
-Swapped Connect SDK on a merchant site (fictional "NOVA" brand, Solana + USDC,
-simulation only — no wallet, no network calls).
+A merchant site (fictional "NOVA" brand) that talks to real wallets directly —
+the page itself plays the role of the future Swapped Connect SDK. Solana
+mainnet, tiny amounts (hard cap **$0.25** per run), recipient fixed to the QA
+throwaway wallet. The results (real app-switch counts and timings per flow)
+define the SDK spec for the dev team.
 
-- **Flow A** — widget inside Phantom's in-app browser (2 heavy jumps, manual return)
-- **Flow B** — universal-link round-trips (4 light automatic jumps)
-- **Flow C** — WalletConnect session (4 light jumps, sign request over the relay)
+- **Flow A** — Phantom's injected provider: desktop extension, or this page
+  opened inside Phantom's in-app browser via `phantom.app/ul/browse/…`
+  (heavy jumps: you come back to Safari by hand)
+- **Flow B** — Phantom universal links (`phantom.app/ul/v1/connect` +
+  `…/signTransaction`), x25519-encrypted redirect payloads, page broadcasts
+  the signed tx itself (light automatic round trips; mobile only)
+- **Flow C** — WalletConnect v2 session: QR on desktop, wallet links on
+  mobile; sign request rides the relay. Reference wallet: Trust (Phantom's
+  wallet-side WC support is undocumented — testing it is itself a finding)
 
-Open `index.html` (or the GitHub Pages URL) on a phone. Tap a flow, watch the
-jump counter, open the `{ }` tab for engineer notes, `↺` resets.
+Journey: **Wallet → Deposit → Phantom → choose A/B/C**. The top toolbar counts
+real app switches (1 round trip = 2 jumps) and shows away-time per trip. `{ }`
+opens engineer notes with the exact call at every step + an RPC override field.
 
-## Build
+## Build & verify
 
-The deployed `index.html` is fully self-contained (all assets inlined as data URIs).
-Sources live in `source/` (kept out of git — contains raw Figma design exports):
+The deployed `index.html` is fully self-contained. Sources live in `source/`
+(kept out of git — contains raw design exports + node_modules):
 
-    cd source && node build.mjs   # emits ../source/index.html — copy to repo root
-    node verify.mjs               # Playwright drive-through of all 3 flows
+    cd source
+    npm install
+    node build.mjs           # bundles the wallet layer (esbuild) + inlines everything
+    node checks/real-units.mjs  # crypto/URL/cap unit checks
+    node verify.mjs          # hermetic Playwright pass: fake provider, mocked RPC,
+                             # simulated Phantom peer for the flow-B round trip
+
+The build reads two PUBLIC values from the QA repo's `.env`
+(`TEST_SOLANA_ADDRESS`, `REOWN_PROJECT_ID`) and refuses to emit any secret.
+
+## Money safety
+
+`$0.25` hard USD cap + an absolute lamports ceiling enforced **before** any
+wallet sees a request; recipient hardcoded at build time; the price feed
+falls back HIGH so the cap only gets stricter; every signature is approved by
+a human in the wallet.
+
+`serve.command` — double-click to serve on the local network (no-store headers).
