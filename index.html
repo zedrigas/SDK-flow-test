@@ -1885,6 +1885,19 @@ $('#rpc-save').addEventListener('click', () => {
 
 /* ---------------- boot ---------------- */
 (function boot() {
+  // #rpc=<encoded url> — one-time RPC hand-off via link (the fragment never
+  // reaches servers or the page source; stored in this browser only)
+  const hm = location.hash.match(/^#rpc=(.+)$/);
+  if (hm) {
+    try {
+      const url = decodeURIComponent(hm[1]);
+      if (/^https:\/\//.test(url)) {
+        R.sol.setRpcUrl(url);
+        demoToast('RPC saved on this device', 'This browser now uses your private RPC.', 5000);
+      }
+    } catch { /* malformed — ignore */ }
+    history.replaceState(null, '', location.pathname + location.search);
+  }
   if (!R.sol.isDefaultRpc()) $('#rpc-input').value = R.sol.rpcUrl();
   renderHud();
   const ret = R.deeplink.parseReturn();
