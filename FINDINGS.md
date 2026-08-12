@@ -42,3 +42,35 @@ flow C. RPC is not involved until after connect (balances, broadcast).
 - Phantom deprecated the `signAndSendTransaction` DEEPLINK (the injected
   method stays alive) → universal-link flows must use `signTransaction` and
   broadcast client-side.
+
+## v9 (2026-08-12) — scenario closure + 1:1 fidelity sweep
+
+Built: the Summary review modal (Figma 6389:109817) now sits before EVERY sign
+(From/To, amount, live fee breakdown; the deeplink CTA is the real universal
+link); a Transaction-failed sheet with per-class reasons (rejected /
+insufficient funds / expired blockhash / timeouts / dead WC session) that keeps
+the Solscan link whenever a signature was broadcast; picker search filters for
+real; details sheet restored 1:1 (token icon, Recipient Address + working
+copy, external-link icon); desktop game-card hover overlays + the Enhanced-RTP
+badge; QR caption per the Figma block.
+
+Fixed defects (all found by audit, all regression-checked): a broadcast
+signature was DISCARDED on slow confirmation; deeplink sign-rejection dumped
+to the homepage and leaked a stale pending amount into the next transaction;
+no insufficient-funds pre-check (empty wallets got sign prompts destined to
+fail); blockhash expiry was never detected; WC session death mid-sign waited
+the full 90s; injected sign had no timeout; toasts rendered UNDER modal
+backdrops (z-index); double-tap races on flow entry.
+
+### Deliberate divergences from Figma (documented, not bugs)
+- NOVA brand replaces Stake everywhere (PO decision, day one).
+- Real content replaces sample content: tiny amounts ($0.01–$0.10, $0.25 cap)
+  instead of $10–$500 chips; USDC + SOL balance rows instead of USDT×3;
+  Phantom/WalletConnect connected row instead of Coinbase; live fees/slots.
+- Added, not in Figma: Solscan link on success; Slot row in details; the demo
+  toolbar, flow chooser, notes drawer + RPC field; connect hand-off sheet; WC
+  sheet (borrows the Summary QR block language); failure-reason line.
+- Removed vs Figma: the deprecated signAndSendTransaction deeplink (Phantom
+  deprecated it); Swapped Fee row (no Swapped backend in the loop); token-chip
+  chevron (no token selector in scope); mobile chrome is an adaptation (no
+  mobile Figma frame exists).
