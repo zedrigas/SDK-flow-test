@@ -132,6 +132,88 @@ fail); blockhash expiry was never detected; WC session death mid-sign waited
 the full 90s; injected sign had no timeout; toasts rendered UNDER modal
 backdrops (z-index); double-tap races on flow entry.
 
+## v11 (2026-08-12) — 1:1 production-widget journey
+
+PO field verdict on v10: transports work, but the SEQUENCE is not the product.
+v11 rebuilds the journey to mirror the real widget exactly (Figma flow
+6411-88878 + the QA repo's verified production copy):
+
+**picker → "Log in with Phantom" → "Enter amount to deposit" → "Deposit $X" →
+"Confirm Transaction" → waiting → success/failed.**
+
+- The A/B/C transport chooser is GONE from the user path. The transport is a
+  consequence of context, exactly as the SDK will do it: injected provider →
+  direct connect (desktop extension / Phantom's in-app browser); mobile
+  Safari → the connect universal link IS the "Log in" button, with a secondary
+  "or continue inside the Phantom app" hand-off; desktop without extension →
+  Browser|Mobile tabs, the Mobile tab QR hands this page to the phone. A
+  TRANSPORT override (Auto/A/B/C) lives in the notes drawer for engineers.
+- **The in-app hand-off now resumes at the amount screen** (`?widget=1&step=amount`
+  + eager connect; a declined/gesture-gated connect leaves a "Log in" retry).
+  The picker never re-appears — the PO's headline complaint.
+- Production copy everywhere: "Please complete your login to continue." /
+  "Click log in to continue with Phantom" / "Log in failed. Please click log
+  in to try again" (banner, replaces the toast+chooser) / amount "Deposit" +
+  Max + CTA "Continue"→"Deposit $X" (skeletal + disabled until connected, the
+  real widget's pre-connect behavior) / "Click|Tap to see breakdown" /
+  "Confirm Transaction" on every transport / waiting "Confirm transaction in
+  your wallet app — Waiting for a signature — Please confirm your transaction
+  on Phantom|Trust".
+- New "Select supported token" drawer from the token pill: REAL SOL + USDC
+  balances, Refresh; USDC is display-only (PO decision) — tapping it says so.
+- Trust Wallet is now a first-class picker tile → "Log in with Trust Wallet"
+  (the WalletConnect transport behind the production surface; QR on desktop,
+  "Log in" link on mobile). Trust logo exported from the Figma source.
+- Money layer untouched: cap, fixed recipient, funds pre-check, sig-before-
+  confirm, cancel refusal, reset invalidation, injection priming, iPad UA.
+- Disconnect (PO ask): the CONNECTED wallet row opens a drawer with a
+  "Disconnect Wallet" action that tears down the ACTIVE transport (injected
+  disconnect / WC session end / universal-link session wipe) and clears state.
+
+### v11 adversarial review — 14 + 6 findings fixed, 2 rounds
+
+Two review rounds (15 + 2 agents) on the restructured journey. Round-1 fixed
+14 confirmed defects; round-2 refuted the fixes and found 6 more. All fixed and
+regression-checked (~140 browser checks):
+- **CRITICAL — reset could hide a real spend**: tapping the demobar Reset while
+  a Phantom prompt was open bumped the run token; approving after that
+  broadcast real SOL that the page silently discarded (no record, no screen).
+  Reset AND cancel are now REFUSED while any wallet prompt is open; a broadcast
+  signature is ALWAYS recorded.
+- **No injected sign timeout**: a 120s page-side timeout abandoned a live
+  Phantom prompt and offered "try again" — a double-spend, since Phantom
+  broadcasts on approval. The wait is now un-timed (the user resolves it in the
+  wallet); after 30s the screen names the only safe escape (reload).
+- **Stale-sign fingerprint guard**: a Phantom sign sheet approved late (after
+  the summary was rebuilt at a new amount) is rejected by a message-bytes
+  fingerprint — never broadcast, never recorded with the wrong amount.
+- **WC session-death deadlock**: a session_delete mid-signature latched the
+  spinner forever (the delete handler bumped the run token that the in-flight
+  rejection needed). The handler now steps aside mid-sign; the rejection routes
+  to the failed sheet and clears the phase.
+- **Record-before-broadcast**: for the deeplink and WalletConnect page-broadcast
+  paths, the signature is extracted from the signed bytes and recorded BEFORE
+  `sendRawTransaction`, so an ingest-then-error still shows the Solscan link
+  instead of "nothing was sent".
+- **Race tokens**: late connects, late WC pairing approvals, and abandoned QR
+  pairings after reset/back/disconnect/transport-switch are all dropped; a
+  superseded pairing is politely disconnected; "Generate a fresh QR" and
+  re-entry render a fresh code instead of a stale dead-end.
+- **Create New Transaction** keeps the wallet connected (was wired to the full
+  demo reset, which tore the wallet down).
+
+### Documented divergences from the Figma flow board (6411-88878), not gaps
+- No inline "Min. amount" validation banner: amounts are fixed preset chips
+  within the $0.25 cap, so no free-input min/max error can occur.
+- No separate "Transaction was cancelled" banner ON the confirm sheet: a
+  rejection toasts and returns to the amount screen (a UX divergence, not a
+  money issue). Candidate polish if the PO wants strict parity.
+- Breakdown is an inline expander (matches the annotated Summary node
+  6389:109817), not the board's separate Breakdown sub-sheet.
+- No dedicated failed-/cancelled-details sheet: the failed screen carries the
+  reason + Solscan link (the on-chain detail) instead.
+- Amount is chip/Max-driven, not a typable field (the tiny-amounts model).
+
 ### Deliberate divergences from Figma (documented, not bugs)
 - NOVA brand replaces Stake everywhere (PO decision, day one).
 - Real content replaces sample content: tiny amounts ($0.01–$0.10, $0.25 cap)
@@ -141,6 +223,7 @@ backdrops (z-index); double-tap races on flow entry.
   toolbar, flow chooser, notes drawer + RPC field; connect hand-off sheet; WC
   sheet (borrows the Summary QR block language); failure-reason line.
 - Removed vs Figma: the deprecated signAndSendTransaction deeplink (Phantom
-  deprecated it); Swapped Fee row (no Swapped backend in the loop); token-chip
-  chevron (no token selector in scope); mobile chrome is an adaptation (no
-  mobile Figma frame exists).
+  deprecated it); Swapped Fee row (no Swapped backend in the loop); the "Wait
+  for second confirmation" and "Swapping X to Y" screens (N/A to a single-sig
+  direct SOL transfer); mobile chrome is an adaptation (no mobile Figma frame
+  exists). (v11 note: the token selector EXISTS now — USDC display-only.)
