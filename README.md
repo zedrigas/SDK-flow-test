@@ -31,6 +31,9 @@ The deployed `index.html` is fully self-contained. Sources live in `source/`
     node checks/real-units.mjs  # crypto/URL/cap unit checks
     node verify.mjs          # hermetic Playwright pass: fake provider, mocked RPC,
                              # simulated Phantom peer for the flow-B round trip
+    npm run eval             # AI eval agent: screenshots every flow step, then a
+                             # headless Claude grades each against eval/rubric.md
+                             # (strict JSON verdict in eval/report.json)
 
 The build reads two PUBLIC values from the QA repo's `.env`
 (`TEST_SOLANA_ADDRESS`, `REOWN_PROJECT_ID`) and refuses to emit any secret.

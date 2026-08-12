@@ -432,8 +432,8 @@ body:not([data-connected="1"]) .post-c { display: none !important; }
   background: rgba(0, 0, 0, 0.32); border-radius: 48px; padding: 6px;
   overflow-x: auto; scrollbar-width: none; margin: 0 16px 16px;
   /* right fade signals the row scrolls (Figma clips "Settings" the same way) */
-  -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent 99%);
-  mask-image: linear-gradient(90deg, #000 90%, transparent 99%);
+  -webkit-mask-image: linear-gradient(90deg, #000 86%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 86%, transparent 100%);
 }
 .wl-tabs::-webkit-scrollbar { display: none; }
 .wl-tabs .tab {
@@ -638,6 +638,9 @@ body:not([data-connected="1"]) .post-c { display: none !important; }
   .m-search-row { margin: 0 max(44px, calc((100% - 1200px) / 2)); }
   .m-shelf { padding: 0 max(44px, calc((100% - 1200px) / 2)); }
   .m-cards { margin: 0; padding: 0; }
+
+  /* toasts anchor top-right on desktop — never over the balance pill */
+  .toast { left: auto; right: 16px; margin: 0; max-width: 380px; }
 
   /* chat FAB (6419:95433) */
   .d-chat {
@@ -1530,6 +1533,8 @@ async function refreshBalances() {
       el.lastChild.textContent = ' ' + b.usdc.toFixed(2) + ' USDC';
     });
   } catch (e) {
+    // settle the fields — a stuck "…" reads as loading forever
+    ids.forEach((i) => { const el = $('#' + i); if (el) el.textContent = '—'; });
     demoToast('Balance read failed', 'The RPC refused the request. Set a private RPC URL under the { } notes drawer.', 6500);
   }
 }
