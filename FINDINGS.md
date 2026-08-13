@@ -227,3 +227,50 @@ regression-checked (~140 browser checks):
   for second confirmation" and "Swapping X to Y" screens (N/A to a single-sig
   direct SOL transfer); mobile chrome is an adaptation (no mobile Figma frame
   exists). (v11 note: the token selector EXISTS now — USDC display-only.)
+
+## v12 (2026-08-13) — the "alive page" restyle (Stake-1:1 look & feel)
+
+PO verdict on the shell: "looks like a dead site — no hovers." Root cause
+found and confirmed: the page had exactly ONE `:hover` rule and a
+same-specificity override later in the cascade killed it at every viewport —
+shipped in v9 as "hover overlays" and never caught, because the screenshot
+rubric cannot see interaction states. v12 makes the merchant shell feel like
+the real stake.com and adds a permanent guard so an inert page can never pass
+the gate again.
+
+- **File split**: the merchant shell now lives in `src/merchant.html` +
+  `src/merchant.css` (emitted last, wins ties); proven a pure refactor by a
+  pixel-identical before/after build at both breakpoints.
+- **Typography**: Mulish (embedded latin variable woff2, SIL OFL) replaces the
+  system stack as the Proxima Nova look-alike; Inter (per Figma §6) on the
+  card overlays. +105 KB total.
+- **Interaction layer** (authored to convention — the Figma capture has no
+  interaction states): hover brightness/washes on every control, gated to
+  `(hover:hover) and (pointer:fine)`; all press states transitioned (150/200ms);
+  `:focus-visible` rings + full keyboard path (tabindex + Enter/Space dispatch);
+  `prefers-reduced-motion` collapses it all.
+- **Hover overlay rebuilt 1:1** (SPEC §6/§7): solid #1475e1 fill over the art,
+  capitalized title top-left, centered play triangle, proper-case provider
+  per game, grey expand button; sports variant = title + play only, full-card.
+  Cascade bug fixed at the root (base rule specificity lowered on purpose).
+- **Feel-real features**: live search over both shelves (blue focus border,
+  honest empty state); carousel arrows + edge fades (desktop); sidebar row
+  selection + Casino/Sports tab state (syncs the search category label);
+  Load More (clones 8 cards at zero page-weight, then honestly disables);
+  Providers strip (10 wordmark chips); footer (4 link columns, language chip,
+  © NOVA demo line, 18+ roundel, live SOL ticker — hidden whenever the price
+  is the HIGH money-safety estimate, so a fallback never displays as real).
+- **Fidelity corrections from sampling the Figma shot** through the dim model:
+  balance pill is the translucent black well `rgba(0,0,0,.32)` (the spec's
+  `#395565` was its one low-confidence guess); sidebar `#13232d` and top bar
+  `#1a2e39` confirmed exact.
+- **Permanent guard**: `checks/interaction-states.mjs` — 48 hermetic checks
+  (overlay reveal + geometry per variant, computed hover styles, transition
+  presence, Tab ring + Enter activation, search/carousel/Load More behavior,
+  reduced-motion + mobile opt-outs, zero page errors, zero external requests).
+  Runs in the gate before verify.mjs. Eval grew to 36 shots (hover states,
+  filtered search, footer) with rubric criteria that FAIL an inert page.
+
+Known accepted artifact (PO-flagged): several sports/CS2 art PNGs from the
+Figma capture carry burned-in Stake sponsor marks (jerseys/watermarks). The
+authored UI is NOVA-only; swapping that art needs new source images.

@@ -29,6 +29,9 @@ The deployed `index.html` is fully self-contained. Sources live in `source/`
     npm install
     node build.mjs           # bundles the wallet layer (esbuild) + inlines everything
     node checks/real-units.mjs  # crypto/URL/cap unit checks
+    node checks/interaction-states.mjs  # the page is ALIVE: hover/focus/motion,
+                             # search, carousel, keyboard (the dead-page guard —
+                             # a screenshot rubric alone cannot catch inert UI)
     node verify.mjs          # hermetic Playwright pass: fake provider, mocked RPC,
                              # simulated Phantom peer for the flow-B round trip
     npm run eval             # AI eval agent: screenshots every flow step, then a
