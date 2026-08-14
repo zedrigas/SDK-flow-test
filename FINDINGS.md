@@ -274,3 +274,41 @@ the gate again.
 Known accepted artifact (PO-flagged): several sports/CS2 art PNGs from the
 Figma capture carry burned-in Stake sponsor marks (jerseys/watermarks). The
 authored UI is NOVA-only; swapping that art needs new source images.
+
+## v13 (2026-08-14) — auto-reconnect / session persistence
+
+PO field report: the Stake UI looks connected, but every flow made them
+re-sign the CONNECTION; in the production widget the wallet stays/auto-connects
+~99% of the time, so a returning user signs only TRANSACTIONS. Root cause: on
+every fresh page load the demo restored only the deeplink session — injected
+(extension / in-app browser) and WalletConnect started disconnected.
+
+- **Sign the connection ONCE, then it sticks.** boot now auto-reconnects the
+  LAST-used transport (localStorage `nova-last-method`): injected via
+  `connect({onlyIfTrusted:true})` (silent — no prompt for a trusted origin);
+  WalletConnect via `restoreSession()` (sign-client's own persistence, expiry-
+  filtered); universal links keep their token as before. Only transactions
+  need signing on later visits.
+- **Durable disconnect.** Explicit Disconnect and the demo Reset clear the
+  marker; auto-reconnect is MARKER-GATED, so a disconnect sticks even though
+  Phantom's `disconnect()` does NOT revoke origin trust (the wallet-adapter
+  footgun). Phantom `disconnect`/`accountChanged` events keep state honest.
+
+Adversarial review (2 rounds, 8 confirmed findings, final round clean):
+- injected reconnect was un-gated (disconnect not durable) → marker-gated;
+- boot eager connect lacked a run-token guard (a late reconnect could clobber
+  a manual connect / wipe the WC topic) → connectRun/wcPairingRun guards on
+  BOTH the injected and WC boot paths, re-checked after the async handshake;
+- `accountChanged` could swap the account UNDER a built tx → an account switch
+  now invalidates the pending tx and kicks back to the amount screen, and
+  summary-confirm refuses to sign a tx whose fee-payer ≠ the connected account;
+- a switch seen mid-deposit is deferred and re-applied after it settles;
+- unguarded `localStorage` in the wallet-event callbacks (throws in a
+  storage-denied iframe) → all storage access guarded;
+- WC `restoreSession` could adopt an expired/dead session → expiry filter (a
+  still-dead-wallet session is caught by the 90s sign timeout → failed sheet);
+- `onSessionDelete` left a stale `wc` marker → cleared on session death.
+
+Verified: 24 unit + 168 hermetic browser checks (incl. reload-stays-connected,
+trusted-origin-boots-connected, disconnect-stays-disconnected, account-switch-
+never-signs-stale) + interaction gate + 37-shot AI eval — all green.
