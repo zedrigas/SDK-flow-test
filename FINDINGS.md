@@ -312,3 +312,80 @@ Adversarial review (2 rounds, 8 confirmed findings, final round clean):
 Verified: 24 unit + 168 hermetic browser checks (incl. reload-stays-connected,
 trusted-origin-boots-connected, disconnect-stays-disconnected, account-switch-
 never-signs-stale) + interaction gate + 37-shot AI eval — all green.
+
+## v14 (2026-08-14) — dark-widget pixel parity (Figma 6411) + the parity judge
+
+PO verdict on v11-13: the journey works, but the screens were MY interpretation
+in the Stake skin, "not like the ones we have on Figma". Root cause: v9's
+"skip dark widget screens" + v11's "match Stake styling" made 6411 a
+sequence/copy reference only. PO decision (final): the widget journey sheets
+copy the DARK Swapped-widget design (6411) 1:1 — every screen has a real
+Figma frame. The merchant shell, the wallet modal, and the disconnect drawer
+stay Stake-styled (merchant surface).
+
+- **10 sheets reskinned** to the dark widget (`data-skin="wg"`, scoped CSS;
+  #181818/#202020, violet #4608e3 CTAs, Satoshi — the palette and font were
+  already embedded, unused, since the widget-sim days). Sheet width pinned to
+  the Figma frame's 400px on desktop.
+- **Amount screen rebuilt per frame 88879**: bordered card, "Deposit" label,
+  TYPABLE $ input (masked, 2 decimals), Max pill (= the $0.25 cap), ⇅ SOL
+  equivalent line, SOL/fiat chip, chips row below the card, and the inline
+  error banner per frame 88928 ("Maximum deposit is $0.25") — closes the old
+  "no inline validation" divergence. One `setAmount()` funnel keeps the CTA
+  gate, the cap banner, and the equivalents in agreement; the money layer's
+  cap-throw remains the backstop.
+- **Summary/breakdown/waiting are true OVERLAYS** above the dimmed amount
+  screen (frames 88891/88910/89001), with the "Transaction was cancelled"
+  banner (88900) on WC cancel. Figma copy wins where it differed from the
+  production POM: "Deposit 0.000050 SOL" titles, "Confirm transaction",
+  "View breakdown", "Make new transaction", "Transaction details".
+- **Login family per frames 89098/89019/89120/89111**: Browser|Mobile pill
+  toggle, the browser-extension illustration (exported from Figma at 2x),
+  INVERTED page-URL QR with the Phantom badge centered (89019), the circled
+  badge + arc (89120), failure banner above the CTA. The Trust WC QR stays
+  black-on-white deliberately — wallet in-app scanners are less reliable with
+  inverted codes (scannability beats fidelity there; documented).
+- **Picker per frame 88950**: white tiles on the dark sheet, centered title,
+  "Installed" badge on Phantom when a provider is detected, search copy
+  "Search for exchange or wallet".
+- **The parity judge + auto-fix loop** (the PO's "eval agent so I don't
+  re-prompt"): `npm run eval:parity` captures each of 18 screen-states and a
+  per-screen headless-Claude judge compares BUILD vs the exact Figma frame
+  render (fetched via MCP into eval/reference/figma/), returning falsifiable
+  delta lists; `npm run eval:parity:loop` feeds deltas to fixer agents and
+  re-judges until clean (≤4 rounds). `npm run check:figma` (32 deterministic
+  computed-style checks incl. Stake-survivor and :root-bleed tripwires) gates
+  every round — the v12 lesson that screenshots alone grade too kindly.
+- **Final parity outcome (2026-08-16): 18/18 screens pass** — 13 machine-judged
+  over 7 rounds + 5 recorded human verdicts (login-browser, login-qr-tabs,
+  login-failed, failed, details), each judged side-by-side against the exact
+  frame render after the judge CLI repeatedly process-errored or flip-flopped
+  on those specific screens (details' chat-button chrome got opposite verdicts
+  in consecutive rounds — the frame settled it: both header buttons are flat
+  filled circles). Verdicts + rationale live in eval/parity-report.json.
+- **Hard-won pipeline lessons** (now baked in as guards):
+  - The judge prompt's FROZEN contracts now BAN static/sample data — a fixer
+    once hardcoded "0.001 BTC / = $100" onto the real-money failed sheet to
+    match the frame's placeholder content.
+  - eval/figma-refs.json notes now document the backdrop corner-bleed capture
+    artifact (every screen), the real-QR-vs-decorative-modules swap, and the
+    failed screen's pre-broadcast state (no details link without a signature).
+  - `filter: invert(1)` on an svg ROOT computes but never paints in headless
+    Chromium — the login QR's inversion is baked into the svg fills instead
+    (also sturdier on real devices).
+  - `sips`-cropped PNGs drop the sRGB chunk but keep gAMA+cHRM, which Chromium
+    color-manages visibly darker (#181818 → #111); the login-browser
+    illustration (a 1:1 crop of frame 89098 itself) is re-encoded sRGB-only.
+  - The login sheet's twin auto-margin centering means margin-top on a variant
+    breaks EVERY ring variant — vertical biasing goes on the wrap's padding,
+    scoped with :has() to the banner variant.
+- **Behavioral eval: 37/37** after repointing 6 stale rubric items to the
+  frames (amount CTA stays "Continue"; breakdown = Amount/Network/Withdrawal
+  fee, no Total row; waiting = "Confirm transaction" + confirm-on-Phantom
+  body; details fee label; "Deposit address"; login-failed CTA reads
+  "Log in"; noext Continue is full violet). The $0 amount state keeps a
+  visibly dimmed CTA — the fixer's frame-88928 opacity override is now
+  scoped to the over-cap banner state only. Journey drivers updated to the
+  frame reality: the breakdown sub-sheet hides the CTA (collapse first, as a
+  real user must), and success/failed have no header close — the exit is
+  "Make new transaction" → amount → back (which lands on the wallet modal).
