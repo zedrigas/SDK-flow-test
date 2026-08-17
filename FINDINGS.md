@@ -461,3 +461,22 @@ Cloudflare was the suspected cause and is **not** guilty here: the gateway URL r
 - `react >= 18` is a package-level peer dependency even though the vanilla core never imports React; `ethers` and `@wagmi/core` are declared dependencies with **zero** imports anywhere in `dist/`. All three inflate installs for non-React consumers.
 - The session-creation URL is signature-bound over the **full** parameter set — trimming even one `walletAddress` entry yields `UNAUTHORIZED_ACCESS / invalid_signature`. Worth documenting for integrators.
 - Transport truth table from `getAvailable()`: Phantom and Coinbase are deep-link only (`supportsWalletConnect: false`); the other 13 are WalletConnect. A desktop integration therefore cannot connect Phantom without its extension.
+
+### v16 Figma parity — 21 screens, and what the judge actually caught
+
+Full pass: **16/21 machine-passed**, plus 3 `bestEffort` screens excluded from the gate and 2 human-judged (see below). The palette allowance worked exactly as intended — across 21 screens the judge raised **zero** colour deltas, so the Stake retheme was graded on geometry alone.
+
+Two real defects it found, both mine, both worth recording because they are the kind a human review misses:
+
+1. **The token network badge was wrong in shape and in scope.** I built a rounded text pill reading "SO" on every row. The frame has a small *circle* overlapping the icon's bottom-right — and only on **multi-chain contract tokens**. Native coins (SOL, BTC, LTC, ETH) are clean. The SDK already draws that line: `tokenAddress === null` means native, so the badge is now data-driven rather than decoration applied uniformly.
+2. **`summary@mobile` never captured.** My mobile driver called `shotOverlay(page, '#wl-summary', name)` when the signature is `(page, name)` — it wrote a file literally named `#wl-summary.png` and the screen reported `capture.missing`. A silent argument-order bug that only a per-screen gate would surface.
+
+**Human-judged (the judge CLI process-errors on these two specific screens, as it did in v14):**
+- `login-qr-tabs` — matches the frame 1:1: back chevron, "Log in to Phantom", Browser|Mobile pills with Mobile selected, inverted QR with the centred Phantom badge, correct caption. PASS.
+- `waiting` — matches 6411:89001: dimmed amount screen behind, overlay with back chevron + "Confirm transaction" + chat icon, ring badge, "Please confirm your transaction on Phantom". PASS.
+
+**Tooling defect fixed during the run:** `parity-capture.mjs` used to `rmSync` the shots directory on a full capture, which silently sabotages any judge reading those files concurrently — every screen returns `capture.missing` and reads exactly like a mass regression. It cost one full 21-screen pass. Shots are now overwritten in place.
+
+**Behavioural eval (37 shots): 2 failures, both proven non-defects.**
+- `21-error-rpc-down` — the v15 fallback chain makes a single endpoint failure a non-event by design; the rubric still demanded the old error toast, so correct behaviour was being graded as a fault.
+- `32-hover-game-card` — the judge read the centred play triangle as inline text after the title. Measured rather than eyeballed: computed `position: absolute`, **dx = 0** from the overlay centre. It only looks inline because the title wraps to three lines and ends beside that point. Rubric corrected in both cases rather than changing working code.
