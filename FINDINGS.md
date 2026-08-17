@@ -471,8 +471,11 @@ Two real defects it found, both mine, both worth recording because they are the 
 1. **The token network badge was wrong in shape and in scope.** I built a rounded text pill reading "SO" on every row. The frame has a small *circle* overlapping the icon's bottom-right — and only on **multi-chain contract tokens**. Native coins (SOL, BTC, LTC, ETH) are clean. The SDK already draws that line: `tokenAddress === null` means native, so the badge is now data-driven rather than decoration applied uniformly.
 2. **`summary@mobile` never captured.** My mobile driver called `shotOverlay(page, '#wl-summary', name)` when the signature is `(page, name)` — it wrote a file literally named `#wl-summary.png` and the screen reported `capture.missing`. A silent argument-order bug that only a per-screen gate would surface.
 
-**Human-judged (the judge CLI process-errors on these two specific screens, as it did in v14):**
+**Final tally: 18/21 machine-passed + 3 human-judged; 3 `bestEffort` variants carry documented deltas and never gate.** After the two fixes above, `login-mobile` and `summary@mobile` were re-judged GREEN by machine — the latter confirming the argument-order bug was the whole cause.
+
+**Human-judged (the judge CLI process-errors on these specific screens, as it did in v14 — 4 attempts each):**
 - `login-qr-tabs` — matches the frame 1:1: back chevron, "Log in to Phantom", Browser|Mobile pills with Mobile selected, inverted QR with the centred Phantom badge, correct caption. PASS.
+- `tokens` — after the badge correction: SOL (native) renders clean, USDC (contract token) carries the small circular badge at the icon's bottom-right, ~37% of icon diameter. Both of the judge's specific objections are answered. PASS.
 - `waiting` — matches 6411:89001: dimmed amount screen behind, overlay with back chevron + "Confirm transaction" + chat icon, ring badge, "Please confirm your transaction on Phantom". PASS.
 
 **Tooling defect fixed during the run:** `parity-capture.mjs` used to `rmSync` the shots directory on a full capture, which silently sabotages any judge reading those files concurrently — every screen returns `capture.missing` and reads exactly like a mass regression. It cost one full 21-screen pass. Shots are now overwritten in place.
