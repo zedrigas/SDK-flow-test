@@ -389,3 +389,75 @@ stay Stake-styled (merchant surface).
   frame reality: the breakdown sub-sheet hides the CTA (collapse first, as a
   real user must), and success/failed have no header close — the exit is
   "Make new transaction" → amount → back (which lands on the wallet modal).
+
+## v15 (2026-08-17) — Stake palette, always-on RPC, mobile geometry parity
+
+Three PO findings from field use, each traced to a root cause rather than patched at the symptom.
+
+**1. The widget looked foreign inside Stake.** v14 copied the Figma dark frames exactly (#181818 sheets, WHITE picker tiles) and dropped them onto a navy Stake page. PO decision: keep the Figma *geometry*, wear the *merchant's* colours. The dark ladder maps 1:1 onto Stake's surface ladder, so the retheme is a token flip plus the literals that bypassed the tokens:
+
+| token | v14 | v15 | merchant source |
+|---|---|---|---|
+| `--wg-bg` | #181818 | #1a2e39 | `--m-bg` |
+| `--wg-panel` | #202020 | #203743 | `--m-card` |
+| `--wg-chip` | #282828 | #273a45 | `--wl-tile` |
+| `--wg-border` | #404040 | #395565 | `--m-line` |
+| `--wg-violet` → `--wg-cta` | #4608e3 | `var(--wl-blue)` | Stake blue #1475e1 |
+| `--wg-body` / `--wg-helper` / `--wg-label` | #f5f5f5 / #b2b2b2 / #9f9f9f | #f7fafc / #9fbed0 / #97adbd | `--m-text` / `--m-text2` |
+
+`--wg-cta` READS `--wl-blue` instead of copying its value, so the widget tracks Stake's blue automatically — and the FROZEN "never mutate the shared token" rule still holds. White survives in exactly three places, each because the ground is coloured, not because it was missed: CTA labels (on blue), banner text (on red), and the QR cards (scanner reliability).
+
+**Judge consequence:** the parity judge compares against the DARK frames, so without an allowance it would fail all 15 non-bestEffort screens on hue alone. `swapsAllowed` now carries a palette entry instructing the judge to grade geometry/spacing/type/structure only and to route every colour observation to `ignored`. The picker note that said "HUMAN-VERIFIED: ALL tiles are WHITE" was **deleted** — it had become actively wrong, and a stale allowance is worse than none.
+
+**Survivor tripwire repaired.** `checks/figma-tokens.mjs` proved `#wl-wallet` was still Stake by asserting its background is `rgb(26,46,57)` — which is now the widget's background too, so the check could no longer tell the two apart. Replaced with the structural invariant that actually holds: the survivors carry **no `data-skin` attribute** and keep Mulish.
+
+**2. RPC needed manual pasting.** The paste-once mechanism already existed; what was missing was a fallback worth having and any visibility into which endpoint served a call.
+
+*Probed 2026-08-17* — keyless public Solana RPC is largely gone. drpc (400), blockeden (402), ankr (403), onfinality (429), omniatech (521), rpcpool (403) and alchemy-demo (429) rejected every method. Two survive: `api.mainnet-beta.solana.com` (all seven methods) and `solana-rpc.publicnode.com` (all but `getTokenAccountsByOwner`, which times out consistently — 30s × 3).
+
+So the chain is `[private?, api.mainnet-beta, publicnode]` with `withRpc()` rotating on 429/403/timeout/network. Two deliberate limits: `broadcast()` is **never** wrapped (a send that fails after the network accepted it must surface, not be retried onto another endpoint — that is how you double-spend), and `balances()` degrades to SOL-only when the serving endpoint cannot read token accounts, returning `usdc: null` ("could not read") as distinct from `0` ("holds none") so the UI can say which it means. A demobar chip now reports **RPC private / RPC public** (amber when public) and opens the RPC field on click, and a "Copy setup link" button builds the `#rpc=` link for the next device — the fragment never reaches a server and the key never enters the repo or the bundle.
+
+**3. Sizing was off on the phone — and this is the interesting one.** The 400×514 frame contract lived *only* inside `@media (min-width: 1024px)`. Below that, every widget sheet was a full-bleed, content-height bottom sheet capped at `--sheet-w` 640px. The token drawer measured **248px against a 514px frame** — under half the design.
+
+The parity pipeline could not see it: 15 of 18 screens were captured desktop-only, `figma-tokens` ran at 1470×900 only, `verify.mjs` asserted no geometry at all, and the `ctx` field in `figma-refs.json` was documentation no script read. **The Figma data was always exact; only one viewport was ever compared against it.** That is the transferable lesson — a parity gate is only as wide as its capture matrix, and a single-viewport gate silently certifies every other viewport.
+
+Fixes: `max-width: 400px` and `min-height: min(514px, 88svh)` now apply at every width (the `min()` clamp stops the floor fighting `max-height` on short phones; overlays are excluded on purpose so the dimmed amount screen still shows above them). `88%`/`86vh` became `88svh`/`86dvh` so an iOS URL-bar collapse cannot resize a sheet mid-flow. Two v14 mobile hacks were retired as superseded rather than left to fight the new rules: the `#wl-failed` 520px body floor and the login `104px/100px` magic offsets — both were fits for an unfloored sheet. `visualViewport` now publishes `--kb-inset` so the software keyboard lifts the sheet instead of covering the amount input.
+
+Enforcement: `figma-tokens.mjs` runs **two passes** (desktop 1470×900, mobile 393×852 = the PO's iPhone 15) with real geometry assertions — width `min(400, viewport)`, height ≥ 514, floor-flush anchoring, top-only radius, overlay/amount bottom-edge alignment, additive safe-area padding. 82 assertions. A negative test confirmed the gate is not vacuous: removing the floor rule fails it with `sheet height 310 >= frame 514` and `drawer height 248 >= frame 514` — precisely the defect the PO reported. Three `@mobile` parity screens (amount, tokens, summary) now judge phone-width layout against the same frames with bottom-sheet chrome allowed.
+
+**Caught by the gates, not by review:** adding the RPC chip to the demobar pushed the reset button off a 390px screen. The behavioural eval's mobile journey failed on it. The bar now drops decorative elements first (brand wordmark ≤560px, dev counters ≤430px) and keeps the chip and controls reachable.
+
+## v16 (2026-08-17) — the REAL `@swapped/connect-sdk`, and a blocking upstream defect
+
+The demo now runs on the real SDK instead of a simulation. The SDK is **headless** — it renders nothing, owns no styling, and exposes typed state plus formatters — so the Stake-styled Figma screens became the real front-end rather than being replaced by an iframe. That is the whole reason the v15 restyle survived the swap.
+
+**Working against the live production API** (session `b2540cb5…`, merchant "OpenSea"): session load and view state, 23 payment methods with their own CDN logos, 15 available wallets with per-provider transport metadata, 37 destination wallets with per-coin `minAmount`. The picker is now driven entirely by `paymentMethods.get()`, and the "Installed" badge is real detection via `wallets.getAvailable()` rather than a hardcoded label.
+
+### BLOCKER — `connect.swapped.com/gateway` serves no gateway document
+
+Every wallet operation in the SDK (`connect`, `getBalances`, `signMessage`, `sendTransaction`, and therefore all deposits) is routed through a hidden 0×0 iframe at `{widgetBaseUrl}/gateway`. The host waits for that frame to post `{channel:'swapped-sdk', type:'event', name:'ready'}` before transferring a `MessagePort`; until then, every call is queued.
+
+That event never arrives. Measured directly, mounting the iframe exactly as `SdkGateway` does:
+
+| probe | result |
+|---|---|
+| messages from a `swapped` origin in 30s | **0** |
+| `GET connect.swapped.com/gateway` | `200`, no Cloudflare challenge, body = **"Error No session ID found"** |
+| `GET connect.swapped.com/gateway?sessionId=<id>` | `200`, renders the **full widget UI** ("Select exchange or wallet…") |
+| `GET staging.swapped.app/gateway` | `200`, near-empty page |
+| `wallets.connect({provider:'trust'})` | never resolves (45s, transport pinned to `walletconnect`) |
+
+So `/gateway` is not a route — it falls through to the widget SPA, which has no idea it is meant to be a gateway and never speaks the handshake protocol.
+
+**Two defects, one symptom.** The deployment is missing the `/gateway` document. And `SdkGateway.ensureReady()` has **no timeout of its own**, so the failure mode is an infinite silent hang rather than an error — the popup path has a 15s `READY_TIMEOUT_MS`, but the iframe path has none. Even after the route is fixed, that missing deadline will turn any future gateway outage into a dead spinner for every user.
+
+Cloudflare was the suspected cause and is **not** guilty here: the gateway URL returns 200 with no `cf-mitigated` header, and a real browser passes cleanly through the session-creation redirect.
+
+**Our mitigation** (upstream fix still required): a `gatewayReady()` preflight mounts the same frame and resolves false after 8s, so the login screen states the real cause immediately instead of spinning; and every gateway-backed call carries a 12s deadline. `transfer.submit()` is deliberately exempt — a submit that has already reached the network must surface its own outcome, because racing it against a timer invites a double-send on retry.
+
+### Other SDK observations for the dev team
+
+- `wss://connect-api.swapped.com/socket.io` returns **403**, so the realtime channel (which carries `transaction:updated`) does not connect from a browser origin. Deposit status would need polling.
+- `react >= 18` is a package-level peer dependency even though the vanilla core never imports React; `ethers` and `@wagmi/core` are declared dependencies with **zero** imports anywhere in `dist/`. All three inflate installs for non-React consumers.
+- The session-creation URL is signature-bound over the **full** parameter set — trimming even one `walletAddress` entry yields `UNAUTHORIZED_ACCESS / invalid_signature`. Worth documenting for integrators.
+- Transport truth table from `getAvailable()`: Phantom and Coinbase are deep-link only (`supportsWalletConnect: false`); the other 13 are WalletConnect. A desktop integration therefore cannot connect Phantom without its extension.
