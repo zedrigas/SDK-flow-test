@@ -924,3 +924,54 @@ and the `[hidden]` bug class shipped a THIRD time (`.tok-head`) — ended for
 good with `.wl-sheet [hidden] { display: none !important; }`. Fixture lesson:
 the fake client now ships real data-URI icon artwork — empty URLs both hid the
 broken-image bug and failed the judge on every icon.
+
+## v18.1 — the docs-coverage sweep (2026-08-18, after the 0.0.5 release)
+
+Three read-only audits compared every Core docs page (connect-sdk-docs.pages.dev)
+against the page, cross-checked with the installed 0.0.5 typings. About 90
+behaviors were confirmed already covered. The rest became fixes:
+
+**Money-class bugs.** The three hand-rolled $-input masks stripped a decimal
+COMMA, so a European "1,50" became "150" — a 100x amount feeding straight into
+Coinbase withdrawals and exchange orders. All three fields now share one mask
+built on the SDK's `sanitizeAmountInput`. A tiny converted amount rendered as
+"1e-7" (a JS-number round-trip); the SDK's exact decimal string renders as-is.
+
+**Dead ends.** Order expiry/cancel routed to a step id that matched no pane and
+blanked the sheet — both now land on the amount step with dead checkout links
+cleared. The Coinbase cooldown countdown never rendered (hidden element, no
+text, per-second events discarded). A stuck transfer retry could be rewired
+into a restart that its own guard blocks — submit now routes to retry() when
+one is pending, and the failure screen never steals a live retry CTA. Wallet
+errors arriving while the login sheet was closed vanished; they now surface
+anywhere. A reload into a completed session lost the receipt (hash, explorer,
+fees) — the completed view now consults each module's completed summary.
+
+**Environment.** The default env is STAGING (the PO's sessions live there;
+production's wallet gateway is 403-broken upstream). A bare-uuid paste has no
+host to detect the env from, so a failed load now self-heals: try the other
+env once, keep it only if it answers, never second-guess an explicit URL/toggle.
+`widgetBaseUrl` is passed alongside `apiBaseUrl` so the gateway probe and the
+client share one origin invariant. The SDK's STAGING_API_BASE_URL is exactly
+https://staging-api.swapped.app — the PO's item 3 was already wired; the
+default+self-heal closes the actual hole.
+
+**Docs bugs found (reported via DEV-TEAM-ASKS §14):** the expiry page's example
+passes `expiresAt` to `getExchangePayOrderTimeLeft`, but the shipped function
+takes milliseconds; `client.on('error')` is documented but absent from the
+0.0.5 event map; the "For AI agents" guide page and llms.txt's .md links 404 on
+the canonical domain (they all work on the PO's preview deployment — canonical
+serves a stale build; the agents guide was read there, and the page already
+satisfies its every constraint).
+
+**Deliberate non-fixes (logged, not built):** the multi-connection wallet model
+stays single-wallet (design scope); the Coinbase funding-token toggle stays
+deferred (no frame); `isPopupOpen`/`isRestoring`/`coinbase:connected` are
+covered by substitutes; permanent `forceRefetch` on balances is a freshness
+choice.
+
+The handoff escape hatches (picker back chevron, browse-sheet dismissal, the
+never-dismissible login sheet, widget-root chevron hide) were carried through
+the v18 refactor and shipped; the 11 verify checks the rewrite dropped were
+rebuilt against the shared fake, plus env-default/self-heal blocks. The
+2FA input no longer forces a digits keypad (codes can be alphanumeric).
