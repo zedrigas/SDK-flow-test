@@ -7,6 +7,8 @@ description: Grade the NOVA flow-feel page against Figma after any widget/mercha
 
 Claude does not guess pixels. Two gates, in this order.
 
+**Run this yourself after every visual change. Do not ask the PO to run it.**
+
 Work from `sdk-flow-feel/source/` (sibling of the tests repo if you started there).
 
 ## 1. Machine spec (must pass)
@@ -29,7 +31,7 @@ node eval/parity-capture.mjs --screens=amount
 node eval/grok-grade.mjs --screens=amount
 ```
 
-Needs `XAI_API_KEY` in `../tests/.env` or the environment. Exit 2 = no key. That is not a pass.
+Needs `XAI_API_KEY` in `../tests/.env` or the environment. Exit 2 = no key. Skip the Grok pass and still finish the spec gate. Do not stop to ask the PO.
 
 The judge compares each build shot to `eval/reference/figma/<screen>.png`. It is forbidden to re-report padding, radius, font-size, or width that `figma-spec` already owns.
 

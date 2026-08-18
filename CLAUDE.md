@@ -10,6 +10,8 @@ Sources live in `source/` (gitignored). The tracked `index.html` is the built pa
 
 ## After any visual change
 
+Do this yourself. Do not ask the PO to run commands.
+
 If you touch `source/src/style.css`, widget/merchant sheets in `source/src/page.html`, or anything “make it match Figma”:
 
 ```bash
@@ -18,14 +20,16 @@ npm run check:figma-spec
 npm run eval:grok
 ```
 
+`check:figma-spec` is required every time (no API key).
+
+`eval:grok` needs `XAI_API_KEY` in the tests repo `.env`. If the key is missing, run the spec gate only and keep going. Do not stop and ask the PO for a key.
+
 Then fix only:
 
 - the printed `FAIL` lines from `check:figma-spec`
-- `source/eval/grok-report.json` deltas
+- `source/eval/grok-report.json` deltas (when the Grok pass ran)
 
-Rebuild (`node build.mjs`) and re-run until both are green.
-
-`eval:grok` needs `XAI_API_KEY` in the tests repo `.env` (or the environment). A missing key exits 2. That is not a pass.
+Rebuild (`node build.mjs`) and re-run until green.
 
 Load the `figma-parity` skill. Follow it.
 
