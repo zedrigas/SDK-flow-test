@@ -988,9 +988,13 @@ img.coin { border-radius: 50%; }
 #wl-depositing[data-skin="wg"] .dep-sub { color: var(--wg-helper); font: 400 13px/18px var(--font-wg); }
 /* Figma's ring hugs tight to the badge (small crescent), not the base 80px
    track sized for the wl-skin spinner — shrink so the gap matches */
-#wl-depositing[data-skin="wg"] .wl-spinner { width: 48px; height: 48px; }
+#wl-depositing[data-skin="wg"] .wl-spinner { width: 56px; height: 56px; }
+#wl-depositing[data-skin="wg"] .wl-spinner .badge { width: 32px; height: 32px; border-radius: 10px; }
 /* Figma spinner shows only the animated arc, no full ring track underneath */
 #wl-depositing[data-skin="wg"] .wl-spinner .ring { border-color: transparent; }
+
+/* the breakdown state hides the header chat bubble — frame 6411:88910 has none */
+#wl-summary[data-skin="wg"]:has(#sum-breakdown.open) .wl-header .hbtn[data-action="chat-toast"] { visibility: hidden; }
 
 /* login family (6411:89098 / 89019 / 89120 / 89111) */
 #wl-login[data-skin="wg"] .login-wrap { gap: 24px; padding: 0; }
@@ -3215,6 +3219,7 @@ const ACTIONS = {
       return;
     }
     sdk.token = b;
+    sdk.tokenAuto = false; // an explicit choice is never re-picked by enrichment
     openAmountSdk();
   },
   'tokens-close'() { openAmountSdk(); },
@@ -3858,6 +3863,7 @@ const sdk = {
   connection: null,   // WalletConnection returned by wallets.connect
   balances: [],       // WalletBalance[] for the connected wallet
   token: null,        // the WalletBalance the user is paying with
+  tokenAuto: false,   // true while `token` is the page's guess, not the user's pick
   plan: null,         // WalletTransferPlan from transfer.resolve
   quote: null,        // WalletTransferQuote from transfer.getQuote
   min: null,          // WalletTransferMinAmount { crypto, fiat? }
@@ -4134,7 +4140,7 @@ async function loadSdkBalances({ warnEmpty } = {}) {
       : [];
   } catch { sdk.balances = []; }
   // default to the largest holding that this session can actually receive
-  if (!sdk.token) sdk.token = pickDefaultToken();
+  if (!sdk.token) { sdk.token = pickDefaultToken(); sdk.tokenAuto = !!sdk.token; }
   paintMerchantBalances();
   // 3275:56458 — a connected wallet with nothing this session accepts must say
   // so, with the networks it DOES hold, instead of a dead empty drawer.
@@ -4187,7 +4193,13 @@ const showAmt = (amount, sym) => R.swapped.formatTokenAmount({
 
 function pickDefaultToken() {
   const usable = sdk.balances.filter(sessionAccepts);
-  const scored = (usable.length ? usable : sdk.balances).slice().sort(
+  const pool = usable.length ? usable : sdk.balances;
+  // Balances arrive RATE-LESS first and enrich later (the SDK's own note). A
+  // fiat sort over all-zero rows picked whatever the API listed first — on a
+  // real wallet that was a zero-value BONK row, and $-conversion then yielded
+  // nothing (PO field bug). Prefer rows that can actually convert.
+  const rated = pool.filter((b) => Number(b?.exchangeRate || 0) > 0 || fiatOf(b) > 0);
+  const scored = (rated.length ? rated : pool).slice().sort(
     (a, b) => (fiatOf(b) - fiatOf(a))
       || (Number(b.displayBalance || 0) - Number(a.displayBalance || 0)),
   );
@@ -5931,6 +5943,17 @@ function wireSdkEvents() {
     if (sdk.token) {
       const k = tokenKey(sdk.token);
       sdk.token = sdk.balances.find((b) => tokenKey(b) === k) || sdk.token;
+    }
+    // Rates just enriched: an AUTO-picked token is only the page's guess, and
+    // the guess was made over RATE-LESS rows — recompute it now that fiat
+    // values are real. A manual pick is never overridden.
+    if (sdk.tokenAuto && sdk.token) {
+      const better = pickDefaultToken();
+      if (better && tokenKey(better) !== tokenKey(sdk.token)) {
+        sdk.token = better;
+        sdk.plan = null; sdk.quote = null; sdk.validation = null;
+        resolvePlan();
+      }
     }
     paintMerchantBalances();
     paintTokenButton();
