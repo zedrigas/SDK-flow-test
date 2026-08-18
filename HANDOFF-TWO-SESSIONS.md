@@ -25,6 +25,20 @@ Do **not** start both in the same tree on the same files. SDK owns `source/src/a
 
 Grok eval (8 screens, 2026-08-18): **tokens FAIL** (broken/missing coin icons). **m-wallet is 29px short** (500×654 vs Figma 500×683) — spec and Grok both missed height. Frontend should add a height check after the visual pass.
 
+## PO field shots (same day)
+
+Files in `docs/field-shots/`. Use them as the target / bug pair.
+
+| Shot | What it is | Use |
+|---|---|---|
+| `01-binance-qr.png` | WC QR with Binance mark, caption “Scan with Binance on your phone” | **#16 target.** Connecting… is ok **only** while this QR is up. |
+| `02-xpay-select-min.png` | Select crypto: Min. amount $1 + right `$1` / `0 USDC` | **#13 bug.** Right column is min painted as a balance. Exchange Pay has no holding. |
+| `03-coinbase-closed-or-prompt.png` | Widget Coinbase after the popup closed | **#7 target.** Banner + enabled Log in. Copy: “Window was closed before completion”. |
+| `04-coinbase-widget-waiting.png` | Widget: “Confirm the Coinbase connection in a new tab”, CTA off | **#7 target** while OAuth is open. |
+| `05-coinbase-nova-idle.png` | NOVA: “Please complete your login…”, spinning Log in, no window | **#7 current.** Tile must open OAuth; do not sit here. |
+
+Figma Coinbase idle (`3006:2321`) uses the same “Please complete your login…” line. The **hosted widget** then swaps that line for waiting / closed copy. Match the widget.
+
 ## Parked: transitions (#14)
 
 PO will later grant access to the production widget repo. Do **not** invent easing. When that repo is open, copy the widget’s motion (durations, easing, which nodes animate). Until then: no new animation work in either session.

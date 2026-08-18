@@ -46,6 +46,15 @@ Fix only printed FAILs + `eval/grok-report.json`. Never ask the PO to run these.
 15. If JS already sets the correct wallet icon and it still looks like Phantom, fix the CSS/asset well. Do not hardcode Phantom in CSS.
 Plus: **Wallet modal `#wl-wallet` is 29px too short** (build 500×654 vs Figma 500×683). Stretch to the frame height. Spec missed this — add a `figma-spec` **selector** for height if you re-extract; do not invent the expected number.
 
+## Field shots (2026-08-18)
+
+See `docs/field-shots/`. Pixels only — do not invent JS.
+
+- `04-coinbase-widget-waiting.png` (widget): waiting CTA is grey / not clickable. Match that when JS disables `#cb-connect-cta`.
+- Coinbase fail: red in-sheet banner above the CTA (Figma `3190:104903` + widget closed shot). Not a floating toast.
+- `02-xpay-select-min.png`: row geometry is fine enough; the `$1` / `0 USDC` numbers are an SDK bug. Do not fake amounts in CSS.
+- `01-binance-qr.png`: one mark in the QR centre. If JS still paints a second ring logo, do not add another in CSS. Tell the PO.
+
 ## Do not do
 
 - Motion / transitions (#14). Parked until we have the widget repo.
