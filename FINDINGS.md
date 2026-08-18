@@ -792,3 +792,23 @@ clean solo re-run could not reproduce), and "file modified on disk" warnings
 mid-edit. If a gate dies at `EADDRINUSE`, check `lsof -ti :8930`–`:8952` for
 the other session's LIVE run before killing anything — and prefer one session
 per repo.
+
+### v17 addendum — final polish before deploy
+
+- The success sheet's SOL coin and "View on Solscan" label were baked into the
+  markup (the Figma frame is SOL-specific). Both now follow the ACTUAL paid
+  token and network on every flow — wallet, exchange pay, Coinbase, and a
+  session already completed at load. A token with no art hides the coin: no
+  icon beats the wrong icon on a money screen.
+- The amount screen now shows the minimum PROACTIVELY ("Minimum deposit:
+  X SYM", informational styling) before the user types a bad number — the SDK's
+  BELOW_MIN message still handles the after-the-fact case.
+- `transfer.prefetchTransferCurrencies()` is fired right after connect, so the
+  first resolve/quote answers from a warm cache.
+- Known, deliberate limits (upstream, filed as DEV-TEAM-ASKS §13): kraken
+  OAuth, htx, btcturk, bitfinex and cash-app exist on the session but have NO
+  SDK module — the picker excludes them rather than dead-ending; robinhood's
+  exchange_pay row is outside the SDK's ExchangePayProvider union. The Coinbase
+  funding-token TOGGLE UI is deferred with the other un-designed screens
+  (defaults are computed and passed); multi-wallet display is simplified to the
+  active connection.
