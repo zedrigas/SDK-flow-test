@@ -975,3 +975,38 @@ never-dismissible login sheet, widget-root chevron hide) were carried through
 the v18 refactor and shipped; the 11 verify checks the rewrite dropped were
 rebuilt against the shared fake, plus env-default/self-heal blocks. The
 2FA input no longer forces a digits keypad (codes can be alphanumeric).
+
+## v20 — machine-extracted Figma spec gate (2026-08-18, visual session)
+
+The PO asked for a Figma-parity eval with no transcription in the loop: the
+existing `checks/figma-tokens.mjs` values were hand-copied from a human/AI
+reading of the frames, so a wrong reading became a passing gate; and the LLM
+screenshot judge tolerates small geometry drift. Built the third layer:
+
+- **`eval/figma-spec.json`** — 181 checks across 8 screens (m-wallet,
+  m-deposit, picker, amount, tokens, summary, breakdown, waiting), extracted
+  FROM Figma via MCP `get_design_context`, one agent per node (workflow
+  `figma-spec-extract`). Every check carries Figma provenance (`figma` field).
+  Rule: never hand-edit an expected value — re-extract the screen instead.
+  Selector-only fixes are allowed (the repo supplies selectors, Figma supplies
+  values). Widget screens are geometry/type-only (v15 palette retheme);
+  merchant surfaces assert colours too. 30 unmapped Figma values are logged
+  informationally in the gate output.
+- **`checks/figma-spec.mjs`** (`npm run check:figma-spec`, port 8957) walks the
+  real SDK journey and asserts every check as a computed style or measured box.
+
+First run: **33 failures — 11 extractor selector misses, 22 REAL deltas the
+LLM judge had passed**, all fixed in style.css: picker search field (radius
+16→12, padding→14, gap→6), picker grid gaps (my 8px overrides deleted — the
+4px base was the frame value), method-tile logo 32→24 r8→r6 + tile py 12→16
+(keeps the 56px tile), breakdown hero 500 34/40→700 28/38, breakdown card rows
+13/17→14/18 (card lands at the frame's 110px), bd row coins 14→16, breakdown
+sum-rows gap 16→24 and hero-group gap 6→12 (open state), depositing spinner
+48→60px ring with 40→28px badge r12→r8 (matches the earlier canvas probe that
+measured 28 — the 40px build was judge-approved but wrong), spin-wrap gap
+16→24, dep-sub 400 13px→500 14px. All 181 spec checks now pass; the five
+legacy gates stay green.
+
+Verification pyramid now: figma-spec (machine ground truth) → figma-tokens
+(hand-written invariants + survivors) → LLM parity judge (gestalt) → verify/
+sdk-journey (behaviour).

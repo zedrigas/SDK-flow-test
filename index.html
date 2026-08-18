@@ -288,6 +288,8 @@ body:not([data-connected="1"]) .post-c { display: none !important; }
 .wl-tile.filtered-out, .wl-grid .row.row-empty { display: none; }
 .wl-grid { display: flex; flex-direction: column; gap: 4px; }
 .wl-grid .row { display: flex; gap: 4px; }
+/* an odd leftover tile keeps its half-row column, it never spans the row */
+.wl-grid .row .wl-tile:only-child { flex: 0 0 calc(50% - 2px); }
 .wl-tile {
   flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 10px;
   background: var(--wl-tile); border-radius: 8px; padding: 14px 12px;
@@ -980,7 +982,10 @@ img.coin { border-radius: 50%; }
 @media (max-width: 1023px) {
   #wl-depositing[data-skin="wg"] { border-radius: 28px; }
 }
-#wl-depositing[data-skin="wg"] .wl-spin-wrap { gap: 24px; padding: 8px 0 16px; }
+/* frame 6411:89007 is a 210px sheet: pad24 + header36 + gap24 + group102 + pad24
+   — the group supplies no padding of its own and the sub-copy no extra margin */
+#wl-depositing[data-skin="wg"] .wl-spin-wrap { gap: 24px; padding: 0; }
+#wl-depositing[data-skin="wg"] .dep-sub { margin-top: 0; }
 /* Figma keeps only the "Confirm transaction" lede in the header — the tail stays
    in the DOM (textContent is behavior-asserted) but never renders */
 #wl-depositing[data-skin="wg"] .dep-title-tail { display: none; }
