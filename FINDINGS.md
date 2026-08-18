@@ -612,3 +612,106 @@ but the footer price has silently not worked for some time.
 client injected through `window.__SWAPPED_FACTORY`, with payload shapes copied
 from the `.d.ts`, so a wrong field name cannot pass. The dependency is now
 pinned exactly (`0.0.4`, was `^0.0.4`).
+
+---
+
+## v17 (2026-08-18) — the official docs arrive; 48 more defects, and the first LIVE session
+
+The PO supplied the official docs site (connect-sdk-docs.pages.dev) and a real
+staging session (merchant "Kalshi", 27 payment methods, 37 destination wallets).
+A seven-section docs audit — each section read by one agent, each finding then
+adversarially verified against the code — confirmed **48 defects** on top of the
+v16.1 work. All are fixed. The contract suite grew from 42 to **60 checks**.
+
+### What the live session proved (real SDK, zero mocks, zero spend)
+
+- Staging gateway READY; **15 available wallets** through the privileged channel.
+- A **real WalletConnect wallet connected**: the SDK emitted a genuine `wc:`
+  pairing URI, our headless peer approved it, `getConnections()` reported
+  `connected`, and **7 real balances loaded** with every field the journey
+  layer reads (`fiatValue`, `exchangeRate`, `formatted.*`) present.
+- **USDC-on-Base came back `eligible: true` although the session has no Base
+  wallet** — a live swap route, and the definitive proof that eligibility must
+  come from `balance.eligible`, never from matching networks by hand.
+- The probe lives in the tests repo: `hunt/nova-sdk-live-staging.spec.ts`
+  (@external; run its three tests one at a time — staging's Cloudflare rate
+  limit refuses back-to-back boots and fakes an outage).
+
+### The biggest structural finds
+
+1. **A session that was not `active` at load rendered NO screen.** The one
+   function that draws terminal states was only reachable from an event
+   subscription that was only wired for active sessions. A completed, expired,
+   failed, rejected or maintenance link showed the normal payment page with a
+   tiny chip as the only clue. Now every `SessionViewType` renders a real
+   screen, expired/failed carry a **"Start a new payment"** CTA
+   (`restartSession()` — the docs' recovery, where our copy used to say "go get
+   a new link"), and every payment entry point re-checks `sessionPayable()`.
+2. **The picker deduped by provider.** On the live session six providers are
+   TWO products each (binance/okx/bybit/robinhood wallet+pay, coinbase/kraken
+   wallet+OAuth) — dedupe deleted one flow per provider, with arbitrary API
+   ordering deciding which one survived. Tiles are now keyed by the method's
+   unique `id`, labelled by `uniqueShortName` ("Binance wallet" vs "Binance
+   Pay"), and unroutable types (exchange_api, exchange_proxy, cash_app, and
+   exchange_pay rows outside the SDK's provider union) get no tile at all.
+3. **Exchange Pay charged the wrong amount by design**: `createOrder` takes a
+   FIAT USD string, and the code passed `minAmountCrypto` — and never asked the
+   user for an amount at all. There is now an amount step (prefilled from the
+   session's own ask when present), validated against `minAmountFiat`, and the
+   QR payload is rendered as a real QR through the same encoder the
+   WalletConnect login uses. Abandoning checkout now closes the order at the
+   exchange; re-entering resumes a live one.
+4. **The receipt crashed after real money moved**: `from`/`to`/`destination` on
+   the completed summary are ADDRESS OBJECTS (`{address, formatted, network,
+   explorerUrl}`), and passing them to `formatAddress()` threw. Amounts and
+   fees carry `.currency`, not `.symbol`. The receipt now renders from the
+   objects' own formatted strings inside a try/catch.
+5. **Swap/bridge could submit without the required quote** — Confirm was armed
+   before pricing resolved and stayed armed when it failed. Now: direct arms
+   immediately (quote optional), swap/bridge arm only when the quote lands, a
+   failed quote leaves a "Pricing failed — try again" re-price CTA, and
+   submit hard-refuses a quoteless non-direct plan.
+6. **Coinbase**: `getNetworks` was fed the display *name* where the account
+   *id* belongs; a pending 2FA was stranded if the sheet closed (now resumed
+   from `getActiveWithdrawal()`, and backing out cancels it); `above_spendable`
+   now leaves the CTA live so the SDK's documented auto-adjust path
+   (`onAmountAdjusted`) can run; funding tokens (swappable balances) feed the
+   max and the withdrawal request; the cooldown disables the Start CTA and
+   never the 2FA step.
+7. **Connect-path corrections from the docs**: `popupIfUnavailable: true` on
+   every injected connect (the privileged connect runs inside the hidden
+   gateway iframe, which cannot always see an extension the page can — without
+   the flag such wallets hard-fail beside their own "Installed" badge);
+   transport comes from `AvailableWallet.transports` instead of a hand-rolled
+   guess; desktop-without-extension deep-link wallets get a scan-with-your-
+   phone QR instead of a doomed connect; `force` rides only with WalletConnect.
+8. **Events that were never subscribed**: `wallets:connected` (the ONLY way a
+   deep-link hand-off completes), `wallets:chainChanged` (a network switch now
+   invalidates plan+quote like an account switch), `wallets:error` (failures
+   outside a pending promise were silent), pairing-URI clearing (a dead QR no
+   longer stays on screen), `coinbase:withdrawalCompleted`, and a snapshot
+   reconcile at load so a restored user is not sent to reconnect a wallet they
+   never left — silently, without force-opening the deposit sheet at boot.
+9. **A failed retry() no longer destroys the retry path.** The transfer can be
+   ON-CHAIN with only Swapped's registration missing; the "Finish transfer" CTA
+   survives every failure except the SDK's own "nothing left to retry", the
+   transaction hash stays visible for support, and `restartSession` refuses to
+   run over a pending retry rather than orphaning a sent transaction.
+
+Formatting now goes through the SDK everywhere (`formatTokenAmount`,
+`formatCurrencyAmount`, fee symbols that can legitimately be `USD`), and
+`formatted.fiatValue` is treated as the bare number string it is.
+
+### Also fixed while verifying
+
+`paintMerchantBalances` had a `$`/`$$` typo that threw on every paint after the
+formatter change; the version pin moved to v17 across the page, `verify.mjs`,
+and the tests repo's iOS smoke.
+
+### Gates
+
+`verify` (174) · `check` · `check:ui` · `check:figma` (82×2) · **`check:sdk`
+(60)** — all green. The fake client's shapes were corrected to the shipped ones
+in the same pass (flat `getBalancesForWallet`, address objects, `.currency`,
+dual-typed method fixture), so the tests that used to mask these defects now
+enforce their absence.
