@@ -905,3 +905,22 @@ pairing approved by the test peer, real balances with correct fiat — green.
 - The 36-shot behavioral eval's simulation cases are retired (noted in
   eval/rubric.md) pending an SDK-mode rewrite; the parity eval is the live
   visual gate meanwhile.
+
+### v18 parity verdicts — the 8 new frames
+
+Four judge rounds (the v14-established loop): **7/8 machine-passed** —
+xpay-amount, xpay-select, xpay-checkout, xpay-depositing, cb-amount, cb-2fa,
+nobalance. `cb-login` is human-verified (badge-on-disc with arc halo, copy,
+CTA, composition all match 3006:2321) and marked bestEffort: the judge
+oscillates ±20px between "too low" and "too high" on centered login blocks —
+the same noise v16 documented for the login family.
+
+Real fixes the loop forced: the Coinbase badge rendered a broken-image glyph
+on an empty icon URL; the Max pill wrapped to its own row (the cb card now
+shares the wallet card's exact structure); the checkout tightened to the
+frame's single-CTA layout (back abandons the order, so the cancel affordance
+retired); the login ring gained the frame's backing disc and halo geometry;
+and the `[hidden]` bug class shipped a THIRD time (`.tok-head`) — ended for
+good with `.wl-sheet [hidden] { display: none !important; }`. Fixture lesson:
+the fake client now ships real data-URI icon artwork — empty URLs both hid the
+broken-image bug and failed the judge on every icon.

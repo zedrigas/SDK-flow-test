@@ -1245,13 +1245,15 @@ body:not([data-connected="1"]) #wl-amount .wl-token-chip { opacity: 0.45; }
    .wl-spinner, .tok-*) carry most of the geometry — rules here are only what
    these screens add.
    ================================================================== */
-/* the v11 .wl-tabs lesson, standing guard: author display beats UA [hidden] */
-.xp-step[hidden], .cb-step[hidden], .xp-open[hidden], .wl-cta[hidden] { display: none; }
+/* The v11 .wl-tabs lesson ended for good: THREE separate screens have now
+   shipped with an author display rule beating the UA [hidden] rule. Inside
+   the widget sheets, [hidden] is law. */
+.wl-sheet [hidden] { display: none !important; }
 
 #wl-xpay[data-skin="wg"] .tok-list,
 #wl-cb[data-skin="wg"] .tok-list,
 #wl-xpay-select[data-skin="wg"] .tok-list,
-#wl-nobalance[data-skin="wg"] .tok-list { display: flex; flex-direction: column; gap: 4px; }
+#wl-nobalance[data-skin="wg"] .tok-list { display: flex; flex-direction: column; gap: 8px; }
 #wl-xpay[data-skin="wg"] .tok-empty,
 #wl-cb[data-skin="wg"] .tok-empty,
 #wl-xpay-select[data-skin="wg"] .tok-empty {
@@ -1314,7 +1316,7 @@ body:not([data-connected="1"]) #wl-amount .wl-token-chip { opacity: 0.45; }
 /* 3138:28812 — Select crypto overlay rows */
 #wl-xpay-select[data-skin="wg"] { min-height: min(526px, 88svh); }
 #wl-xpay-select .wl-body { gap: 24px; display: flex; flex-direction: column; }
-.xp-cur-list .tok-row { background: var(--wg-chip); border-radius: 12px; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.xp-cur-list .tok-row { background: var(--wg-chip); border-radius: 16px; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
 .xp-cur-list .l { display: flex; align-items: center; gap: 8px; }
 .xp-cur-list .tok-ico { position: relative; display: inline-block; width: 30px; height: 30px; flex: 0 0 30px; }
 .xp-cur-list .tok-ico .coin { width: 28px; height: 28px; border-radius: 50%; display: block; }
@@ -1336,8 +1338,21 @@ body:not([data-connected="1"]) #wl-amount .wl-token-chip { opacity: 0.45; }
 /* 3006:2321 — Coinbase login: spinner ring reused from the depositing overlay */
 .cb-login { flex: 1 1 auto; }
 .cb-spin { margin: auto 0; }
-.cb-spin .wl-spinner .badge { background: var(--wg-panel); }
-.cb-spin .wl-spinner .badge img { width: 40px; height: 40px; border-radius: 10px; }
+/* frame geometry: 48px badge inside an ~76px arc — a clear halo gap, with a
+   dark backing disc behind the mark (the frame's two concentric layers) */
+.cb-spin .wl-spinner { width: 76px; height: 76px; }
+.cb-spin .wl-spinner::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: var(--wg-panel);
+}
+/* the base .badge is a 36px Phantom-purple square with a 16.67%-inset img —
+   forcing a 40px img inside it skewed the mark. Rebuild the geometry: a 48px
+   neutral squircle whose img fills it exactly. */
+/* the frame shows only the bright arc segment — no full ring track (the same
+   treatment the depositing overlay already carries) */
+.cb-spin .wl-spinner .ring { border-color: transparent; }
+.cb-spin .wl-spinner .badge { width: 48px; height: 48px; border-radius: 12px; background: transparent; }
+.cb-spin .wl-spinner .badge img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 12px; }
 .cb-login-cta { margin-top: auto; }
 #wl-cb[data-skin="wg"] .wl-body { display: flex; flex-direction: column; min-height: 0; }
 .cb-amount-step { flex: 1 1 auto; }
@@ -1388,6 +1403,23 @@ body:not([data-connected="1"]) #wl-amount .wl-token-chip { opacity: 0.45; }
 /* lettered stand-in coin (Coinbase balances / networks carry no artwork) */
 .nb-letter { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--wg-panel); color: var(--wg-body); font: 700 12px/1 var(--font-wg); }
 #wl-cb .wl-token-chip .nb-letter { width: 14px; height: 14px; font-size: 8px; }
+
+/* 3008:575: the View-breakdown chevron sits inside a small circled outline */
+#wl-xpay[data-skin="wg"] .sum-breakdown-toggle .chev,
+#wl-cb-confirm[data-skin="wg"] .sum-breakdown-toggle .chev {
+  border: 1px solid var(--wg-helper); border-radius: 50%; padding: 2px;
+  width: 14px; height: 14px; box-sizing: content-box;
+}
+
+/* checkout cancel is a quiet text link (the frame shows one CTA), and the
+   order step tightens toward the 514 frame height */
+.xp-cancel-link { color: var(--wg-helper); font: 500 12px/16px var(--font-wg); text-align: center; text-decoration: underline; cursor: pointer; }
+.xp-cancel-link[hidden] { display: none; }
+.xp-order-step { gap: 12px; }
+.xp-qr-wrap { gap: 8px; }
+/* the frame's 40px gap between the amount group and the quick chips */
+#wl-xpay[data-skin="wg"] .xp-amount-step .wl-quick { margin-bottom: 24px; }
+.xp-amount-mid { padding-bottom: 40px; }
 
 /* ---- merchant shell (src/merchant.css) — emitted last so merchant rules win ties ---- */
 /* ================= MERCHANT APP (white-label, Stake-style 1:1) ================= */
@@ -2331,9 +2363,9 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
           </div>
           <div class="wl-banner" id="xpay-amt-banner" hidden><span></span></div>
           <div class="xp-sub" id="xpay-min" hidden>—</div>
-        </div>
-        <div class="wl-quick xp-quick">
-          <span class="chip" data-xusd="10">$10</span><span class="chip" data-xusd="20">$20</span><span class="chip" data-xusd="50">$50</span><span class="chip" data-xusd="100">$100</span><span class="chip" data-xusd="500">$500</span>
+          <div class="wl-quick xp-quick">
+            <span class="chip" data-xusd="10">$10</span><span class="chip" data-xusd="20">$20</span><span class="chip" data-xusd="50">$50</span><span class="chip" data-xusd="100">$100</span><span class="chip" data-xusd="500">$500</span>
+          </div>
         </div>
         <div class="wl-cta disabled xp-cta" id="xpay-create" data-action="xpay-create-order">Continue</div>
       </div>
@@ -2368,7 +2400,9 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
         </div>
         <div class="xp-or">or</div>
         <a class="wl-cta" id="xpay-open" rel="noopener" target="_blank" hidden>Continue in browser</a>
-        <div class="wl-cta ghost" id="xpay-cancel" data-action="xpay-cancel" hidden>Cancel order</div>
+        <!-- 3008:575 ends at the CTA. Back abandons the order (closeOrder), so
+             a visible cancel is redundant; the hook survives for tests. -->
+        <div class="xp-cancel-link" id="xpay-cancel" data-action="xpay-cancel" role="button" tabindex="0" hidden aria-hidden="true">Cancel order</div>
         <div class="xp-fees" id="xpay-fees" hidden></div>
       </div>
       <div class="xp-note" id="xpay-note" hidden></div>
@@ -2403,7 +2437,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
       <div class="cb-step cb-login" id="cb-connect">
         <div class="wl-spin-wrap cb-spin">
           <div class="wl-spinner">
-            <span class="ring"></span><span class="arc" id="cb-arc" hidden></span>
+            <span class="ring"></span><span class="arc" id="cb-arc"></span>
             <span class="badge"><img id="cb-badge-ico" src="" alt=""></span>
           </div>
           <div class="wl-progress-txt">Please complete your login to continue.</div>
@@ -2418,8 +2452,8 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
       <!-- amount step (3033:11244): the wallet amount card, Coinbase-fed -->
       <div class="cb-step cb-amount-step" id="cb-amount" hidden>
         <div class="wl-amount-card">
-          <div class="amt-row1"><span class="wl-amount-label">Deposit</span></div>
-          <div class="amt-mid">
+          <div class="wl-amount-label">Deposit</div>
+          <div class="amt-row1">
             <input class="wl-amount-value" id="cb-amt" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="$0" aria-label="Withdrawal amount in USD">
             <span class="amt-max" id="cb-max" data-action="cb-max">Max</span>
           </div>
@@ -2462,7 +2496,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
         </div>
         <hr class="sum-divider">
         <div class="sum-amount-wg">
-          <div class="row"><span class="k">Amount</span><span class="v" id="cb-sum-amount">—</span></div>
+          <div class="row"><span class="k">Amount</span><span class="v"><span class="coin nb-letter" id="cbc-coin" style="width:16px;height:16px;font-size:9px;line-height:16px">?</span><span id="cb-sum-amount">—</span></span></div>
           <div class="sum-breakdown-toggle" data-action="cbc-toggle-breakdown"><span>View breakdown</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
         </div>
         <div class="sum-breakdown" id="cbc-breakdown">
@@ -4749,8 +4783,8 @@ function renderXpayCurrencies(filter) {
     const below = typed > 0 && typed < Number(c.minAmountFiat || 0);
     return '<div class="tok-row" data-action="xpay-pick-currency" data-key="' + esc(R.swapped.getExchangePayCurrencyKey(c)) + '">'
       + '<div class="l"><span class="tok-ico">'
-      + (c.image ? '<img class="coin" src="' + esc(c.image) + '" alt="">' : '<span class="coin"></span>')
-      + '<span class="tok-net" title="' + esc(c.blockchain) + '">' + esc(netBadge(c.blockchain)) + '</span></span>'
+      + (c.image ? '<img class="coin" src="' + esc(c.image) + '" alt="">' : '<span class="coin nb-letter">' + esc(String(c.symbol).slice(0, 1)) + '</span>')
+      + '</span>'
       + '<div class="names"><div class="sym">' + esc(c.symbol) + '</div>'
       + '<div class="minline' + (below ? ' below' : '') + '">Min. amount: $' + esc(String(c.minAmountFiat)) + '</div></div></div>'
       + '<div class="r"><div class="vals"><span class="fiat">$' + esc(String(c.minAmountFiat)) + '</span>'
@@ -4854,8 +4888,10 @@ function paintExchangeOrder(order) {
     else open.hidden = true;
   }
   // Bybit and OKX do not support closing an open order — do not offer it.
+  // 3008:575 ends at the CTA — back abandons a closable order, so the cancel
+  // hook stays hidden (kept for the contract tests and keyboard users)
   const cancel = $('#xpay-cancel');
-  if (cancel) cancel.hidden = !order.canClose;
+  if (cancel) cancel.hidden = true;
   startXpayCountdown(order.expiresAt);
 }
 
@@ -4987,7 +5023,11 @@ async function openCoinbase(method) {
   showSheet('#wl-cb');
   $('#cb-title').textContent = 'Log in with Coinbase';
   const badge = $('#cb-badge-ico');
-  if (badge) badge.src = methodIcon(method) || '';
+  if (badge) {
+    const ico = methodIcon(method);
+    // an empty src renders the broken-image glyph — hide instead
+    if (ico) { badge.src = ico; badge.hidden = false; } else badge.hidden = true;
+  }
   // A 2FA code may already be pending from an earlier visit — resume it.
   const active = R.swapped.coinbase.activeWithdrawal();
   if (active) {
@@ -5170,9 +5210,9 @@ async function cbUpdateLimits() {
     });
     const max = R.swapped.coinbase.maxAmount({ balance: cbSpendable(b), exchangeRate: b.exchangeRate, symbol: b.currency });
     sdk.cb.min = min; sdk.cb.max = max;
-    const el = $('#cb-limits');
-    if (el) { el.hidden = false; el.textContent = 'Min ' + min + ' · Max ' + max + ' ' + b.currency; }
-  } catch { const el = $('#cb-limits'); if (el) el.hidden = true; }
+    // the frame (3033:11244) shows no limits line — the validation banner
+    // carries min/max copy when an amount actually violates them
+  } catch { /* limits stay unknown; validateWithdrawalAmount still guards */ }
   cbValidate();
 }
 
@@ -5251,6 +5291,8 @@ function openCbConfirm(req) {
   const set = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; };
   set('cb-confirm-title', 'Deposit ' + amt);
   set('cb-sum-amount', amt);
+  const coin = $('#cbc-coin');
+  if (coin) coin.textContent = String(req?.currency || sdk.cb?.token?.currency || '?').slice(0, 1);
   set('cbc-bd-amount', amt);
   set('cbc-bd-network', String(req?.network || sdk.cb?.network?.name || sdk.cb?.network?.id || '—'));
   const block = $('#cb-2fa');
@@ -5338,8 +5380,7 @@ function wireCoinbaseEvents() {
     }
   });
   R.swapped.on('oauth:popupOpenChanged', (p) => {
-    const arc = $('#cb-arc');
-    if (arc) arc.hidden = !p?.isOpen;
+    $('#wl-cb .wl-spinner')?.classList.toggle('spinning', !!p?.isOpen);
   });
   R.swapped.on('oauth:error', (p) => {
     const t = p?.error?.type;
