@@ -715,3 +715,80 @@ and the tests repo's iOS smoke.
 in the same pass (flat `getBalancesForWallet`, address objects, `.currency`,
 dual-typed method fixture), so the tests that used to mask these defects now
 enforce their absence.
+
+---
+
+## v17.1 (2026-08-18) — the Stake wallet-modal pair, to the 6389 frames
+
+Ran CONCURRENTLY with the v17 docs pass above, in a second session on the same
+working tree — the two streams interleaved in app.js/page.html/verify.mjs, and
+each side's gate runs fought the other's over the harness ports (see
+Housekeeping below). The final tree carries both; all gates re-ran green on the
+merged state.
+
+The PO supplied the two merchant-modal frames the program was missing: the
+**Wallet modal** (6389:112208, 500×683 @1x) and the merchant's own **Deposit**
+screen (6389:111416, 500×870 @1x). The deposit screen did not exist at all —
+the Wallet modal's Deposit button jumped straight into the widget picker,
+which is not the journey those frames show.
+
+### The new `#wl-mdeposit` sheet (1:1 with 6389:111416)
+
+Crypto | Local Currency segment pills in an `rgba(0,0,0,.32)` well (4px pad,
+999px pills, 52px tall); Currency (USDT) and Network (ETH) selects on
+`#395565` with the frame's exact shadows; the Address group — a bordered text
+well (42–90px, 9px pad, the frame's own `0x234e…153e` placeholder) plus
+refresh and copy buttons split by a 1px `#b6d2e3` divider; a REAL scannable
+QR of that address on a white 8px-pad card; the 16px sentence-case "Or"
+divider (the Wallet modal's OR is 12px uppercase — they genuinely differ in
+the frames); the connected-row + Use Other Wallet card on `#203743`; and the
+Credited / 2 Confirmations footer. New token: `--wl-sub2: #b6d2e3`.
+
+Navigation now follows the Stake journey: **Wallet → Deposit → (connected
+row = resume the widget with this wallet | Use Other Wallet = method
+picker)**. The manual crypto path is display-only — copy really copies, the
+QR really scans, everything else answers with a toast. The old Deposit-button
+shortcut (straight to amount when connected) lives on as the deposit screen's
+connected row. Every journey driver (verify, captures, token checks —
+23 call sites) gained the extra hop.
+
+### Wallet-modal polish (6389:112208)
+
+- The CONNECTED pill now renders in **Inter** — the frame's one non-Proxima
+  element (`font/style/inter`, 6389:112320).
+- The connected row's chevron: the committed `wl-chevron-right.svg` asset is
+  actually a DOWN chevron, so the row rendered ⌄ where the frame shows ›.
+  The frame itself draws a down-chevron rotated -90° (6389:112321) — the CSS
+  now does the same.
+- `.wl-sheet`'s desktop cap moved `min(86dvh,780px)` → `min(88dvh,870px)`:
+  the deposit modal is 870 tall on the frame's 1004 page, and the old cap
+  clipped it into a scroll.
+
+### Gates grown
+
+- `check:figma`: +13 mdeposit checks × 2 viewports (surface colors, segment
+  geometry, the `#b6d2e3` sub-label, white QR card, a real QR present, the
+  "Or"-divider distinction, no `data-skin` bleed).
+- Parity loop: **m-wallet + m-deposit** join `figma-refs.json` as desktop
+  screens, captured CONNECTED at the Figma page's own 1470×1004 viewport
+  (88dvh of a 900-tall window clips the 870 modal). These are MERCHANT
+  surfaces — the v15 palette swap does NOT apply; colours must match the
+  frames. Refs fetched at 1x into `reference/figma/m-{wallet,deposit}.png`.
+  **Both PASS the judge with zero deltas** (parity-capture 23/23; the ignored
+  list is exactly the documented content swaps: two real balance rows for
+  three USDT rows, the demo's connected wallet for Coinbase, a real QR for
+  the decorative one).
+- Merged-tree gate tally: `verify` (177) · `check` · `check:ui` ·
+  `check:figma` (108×2) · `check:sdk` (70 lines incl. per-pass error checks)
+  — all green.
+
+### Housekeeping — two sessions, one tree
+
+Two concurrent Claude sessions worked this repo today (this UI pass and the
+v17 docs pass). Symptoms to recognize next time: `listen EADDRINUSE` on the
+harness ports (8931/8934/8951), a gate run against the OTHER session's
+mid-edit tree producing phantom one-off failures (one sdk-journey red that a
+clean solo re-run could not reproduce), and "file modified on disk" warnings
+mid-edit. If a gate dies at `EADDRINUSE`, check `lsof -ti :8930`–`:8952` for
+the other session's LIVE run before killing anything — and prefer one session
+per repo.
