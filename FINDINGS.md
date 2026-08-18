@@ -812,3 +812,14 @@ per repo.
   funding-token TOGGLE UI is deferred with the other un-designed screens
   (defaults are computed and passed); multi-wallet display is simplified to the
   active connection.
+
+### v17.1 addendum (2026-08-18, PO field feedback)
+
+The Wallet modal's CONNECTED row used to open the disconnect drawer. PO:
+"if I click this it should push me through the flow, not disconnect." Both
+modals' connected rows now share one action (`connected-continue` → the
+widget amount screen), and disconnect moved to a small underlined
+**Disconnect** link tucked under the row (opens the existing confirm
+drawer; documented in figma-refs as a demo addition). Gates re-ran green:
+verify 178 · check · check:ui · check:figma · check:sdk · parity m-wallet +
+m-deposit both pass.
