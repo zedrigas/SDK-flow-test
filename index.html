@@ -988,8 +988,16 @@ img.coin { border-radius: 50%; }
 #wl-depositing[data-skin="wg"] .dep-sub { color: var(--wg-helper); font: 400 13px/18px var(--font-wg); }
 /* Figma's ring hugs tight to the badge (small crescent), not the base 80px
    track sized for the wl-skin spinner — shrink so the gap matches */
-#wl-depositing[data-skin="wg"] .wl-spinner { width: 56px; height: 56px; }
-#wl-depositing[data-skin="wg"] .wl-spinner .badge { width: 32px; height: 32px; border-radius: 10px; }
+/* waiting frame: a long arc (top→right→bottom-right) hugging the 40px badge
+   at a 2-3px gap — 48px box = 40 badge + 2 gap + 2 border per side */
+#wl-depositing[data-skin="wg"] .wl-spinner { width: 48px; height: 48px; }
+#wl-depositing[data-skin="wg"] .wl-spinner .arc { border-top-color: #fff; border-right-color: #fff; }
+/* under reduced motion the spin STOPS (an infinite 1ms loop is still a random
+   pose per frame — the parity capture needs one deterministic pose) */
+@media (prefers-reduced-motion: reduce) {
+  .wl-spinner .arc, .login-ring .arc { animation: none !important; }
+}
+#wl-depositing[data-skin="wg"] .wl-spinner .badge { width: 40px; height: 40px; border-radius: 12px; }
 /* Figma spinner shows only the animated arc, no full ring track underneath */
 #wl-depositing[data-skin="wg"] .wl-spinner .ring { border-color: transparent; }
 
@@ -4378,9 +4386,20 @@ function updateAmountSdk(forceMsg) {
     const span = banner.querySelector('span');
     const min = Number(sdk.min?.crypto || 0);
     // a USABLE plan can still carry a user-facing constraint (docs: show
-    // issues[0].message) — surface it as info, never as the error red
-    const hint = !issue ? (sdk.plan?.issues?.[0]?.message || '') : '';
-    if (!issue && !forceMsg && !(n > 0) && min > 0) {
+    // issues[0].message) — surface it as info, never as the error red.
+    // A rate-less token is its own constraint: the $ field cannot convert, so
+    // Continue stays dead with no explanation unless we give one (seen live
+    // when the rates endpoint was rate-limited).
+    const noRate = t && !(Number(t.exchangeRate || 0) > 0)
+      ? 'Live prices for ' + t.symbol + ' are unavailable right now. Pick another token or try again shortly.' : '';
+    const hint = !issue ? (noRate || sdk.plan?.issues?.[0]?.message || '') : '';
+    if (noRate && !issue && !forceMsg) {
+      // a minimum you cannot enter is useless while nothing converts — the
+      // no-rate explanation outranks the min line
+      banner.hidden = false;
+      banner.classList.add('info');
+      if (span) span.textContent = noRate;
+    } else if (!issue && !forceMsg && !(n > 0) && min > 0) {
       // proactive minimum BEFORE the user types a bad number — informational
       // styling, not the error red. The input is a DOLLAR field, so the
       // minimum must speak dollars too (min.fiat, else ceiled from crypto —
