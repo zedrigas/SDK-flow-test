@@ -384,6 +384,13 @@ body:not([data-connected="1"]) #wl-amount .wl-token-chip { opacity: 0.45; }
 }
 /* the asset is a down-chevron; the frame rotates it -90° to point right (6389:112321) */
 .wl-connected .conn-chev { width: 20px; height: 20px; transform: rotate(-90deg); }
+/* demo addition (PO 2026-08-18): the row CONTINUES the flow, so disconnect
+   gets its own small link tucked under the row — opens the confirm drawer */
+.wl-disc-link {
+  align-self: flex-end; margin-top: -8px; width: fit-content; margin-left: auto;
+  color: var(--wl-sub); font: 500 13px/16px var(--font-wl);
+  text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+}
 .wl-otherwallet {
   display: flex; align-items: center; gap: 8px;
   background: var(--wl-chip); border-radius: 8px; padding: 12px;
@@ -650,7 +657,7 @@ body:not([data-connected="1"]) #wl-amount .wl-token-chip { opacity: 0.45; }
 /* transitions for the sheet/demo controls (the :active snaps get smoothed too) */
 .wl-cta, .wl-tile, .tok-row, .wl-otherwallet, .wl-tabs .tab, .wl-quick .chip,
 .hbtn, .amt-max, .tok-refresh, .wc-retry-link, .wl-details-link, .login-alt,
-.sum-breakdown-toggle, .wl-connected[data-action], #demobar button,
+.sum-breakdown-toggle, .wl-connected[data-action], .wl-disc-link, #demobar button,
 .md-seg .seg, .md-select, .md-addr-btn, .md-back,
 .transport-row .tr-btn, .rpc-row button {
   transition: filter var(--dur-1, 150ms) ease, background-color var(--dur-1, 150ms) ease,
@@ -671,6 +678,7 @@ body:not([data-connected="1"]) #wl-amount .wl-token-chip { opacity: 0.45; }
   .tok-refresh:hover, .wc-retry-link:hover, .login-alt:hover, .wl-details-link:hover,
   .sum-breakdown-toggle:hover { color: #fff; }
   .wl-connected[data-action]:hover { filter: brightness(1.12); }
+  .wl-disc-link:hover { color: #ff9b9b; }
   .md-seg .seg:hover:not(.sel) { color: #fff; background: rgba(255, 255, 255, 0.06); }
   .md-select:hover { filter: brightness(1.1); }
   .md-addr-btn:hover { filter: brightness(1.12); }
@@ -2005,7 +2013,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
         <div class="r"><span class="amt"><span class="pre-c">0.00000000</span><span class="post-c" id="bal-sol-amt">…</span></span><span class="fiat"><span class="pre-c">$0.00 USD</span><span class="post-c" id="bal-sol-fiat">…</span></span></div>
       </div>
       <div class="wl-hr post-c"></div>
-      <div class="wl-connected post-c" data-action="disconnect-open">
+      <div class="wl-connected post-c" data-action="connected-continue">
         <span class="wlogo"><img id="conn-logo-phantom" src="data:image/svg+xml;base64,PHN2ZyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiBvdmVyZmxvdz0idmlzaWJsZSIgc3R5bGU9ImRpc3BsYXk6IGJsb2NrOyIgd2lkdGg9IjE3LjMzMzMiIGhlaWdodD0iMTcuMzMzMyIgdmlld0JveD0iMCAwIDE3LjMzMzMgMTcuMzMzMyIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgaWQ9IkZyYW1lIDE5NDg3NjA2OTUiPgo8cGF0aCBpZD0iVmVjdG9yIiBkPSJNMi4wNTEwNCAxNS4xNjY3QzQuMjYyOTUgMTUuMTY2NyA1LjkyNTI0IDEzLjI4OTcgNi45MTcyMSAxMS44MDY2QzYuNzk2NTggMTIuMTM0NyA2LjcyOTU2IDEyLjQ2MjkgNi43Mjk1NiAxMi43Nzc5QzYuNzI5NTYgMTMuNjQ0MiA3LjIzODk2IDE0LjI2MTEgOC4yNDQ0IDE0LjI2MTFDOS42MjUxMyAxNC4yNjExIDExLjA5OTggMTMuMDc5OCAxMS44NjM5IDExLjgwNjZDMTEuODEwMyAxMS45OTA0IDExLjc4MzUgMTIuMTYxIDExLjc4MzUgMTIuMzE4NUMxMS43ODM1IDEyLjkyMjMgMTIuMTMyIDEzLjMwMjkgMTIuODQyNCAxMy4zMDI5QzE1LjA4MTIgMTMuMzAyOSAxNy4zMzMzIDkuNDMwOTggMTcuMzMzMyA2LjA0NDY2QzE3LjMzMzMgMy40MDY0OSAxNS45NjU5IDEuMDgzMzMgMTIuNTM0MiAxLjA4MzMzQzYuNTAxNjQgMS4wODMzMyAwIDguMjc1OTYgMCAxMi45MjIzQzAgMTQuNzQ2NyAxLjAwNTQxIDE1LjE2NjcgMi4wNTEwNCAxNS4xNjY3Wk0xMC40NTYzIDUuNzU1OUMxMC40NTYzIDUuMDk5NjQgMTAuODMxNiA0LjY0MDI2IDExLjM4MTMgNC42NDAyNkMxMS45MTc1IDQuNjQwMjYgMTIuMjkyOCA1LjA5OTY0IDEyLjI5MjggNS43NTU5QzEyLjI5MjggNi40MTIxNyAxMS45MTc1IDYuODg0NjcgMTEuMzgxMyA2Ljg4NDY3QzEwLjgzMTYgNi44ODQ2NyAxMC40NTYzIDYuNDEyMTcgMTAuNDU2MyA1Ljc1NTlaTTEzLjMyNTEgNS43NTU5QzEzLjMyNTEgNS4wOTk2NCAxMy43MDA1IDQuNjQwMjYgMTQuMjUwMSA0LjY0MDI2QzE0Ljc4NjMgNC42NDAyNiAxNS4xNjE2IDUuMDk5NjQgMTUuMTYxNiA1Ljc1NTlDMTUuMTYxNiA2LjQxMjE3IDE0Ljc4NjMgNi44ODQ2NyAxNC4yNTAxIDYuODg0NjdDMTMuNzAwNSA2Ljg4NDY3IDEzLjMyNTEgNi40MTIxNyAxMy4zMjUxIDUuNzU1OVoiIGZpbGw9IiNGRkZERjgiLz4KPC9nPgo8L3N2Zz4K" alt=""><img id="conn-logo-trust" src="data:image/svg+xml;base64,PHN2ZyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiBvdmVyZmxvdz0idmlzaWJsZSIgc3R5bGU9ImRpc3BsYXk6IGJsb2NrOyIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE1Ljc0OTYiIHZpZXdCb3g9IjAgMCAxNCAxNS43NDk2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8ZyBpZD0iR3JvdXAgODIzNDI2ODMzIj4KPHBhdGggaWQ9IlZlY3RvciIgZD0iTTAgMi4yNzUxM0w2Ljk5OTQzIDBWMTUuNzQ5NkMxLjk5OTg0IDEzLjY0OTYgMCA5LjYyNDkyIDAgNy4zNTA5NFYyLjI3NTEzWiIgZmlsbD0iIzA1MDBGRiIvPgo8cGF0aCBpZD0iVmVjdG9yXzIiIGQ9Ik0xNCAyLjI3NTEzTDcuMDAwNTcgMFYxNS43NDk2QzEyLjAwMDIgMTMuNjQ5NiAxNCA5LjYyNDkzIDE0IDcuMzQ5OFYyLjI3NTEzWiIgZmlsbD0idXJsKCNwYWludDBfbGluZWFyXzBfMTQwKSIvPgo8L2c+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfMF8xNDAiIHgxPSIxMi4wNzMzIiB5MT0iLTAuODg5NzU3IiB4Mj0iNi43ODYwMSIgeTI9IjE1Ljc0NzgiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agb2Zmc2V0PSIwLjAyIiBzdG9wLWNvbG9yPSIjMDAwMEZGIi8+CjxzdG9wIG9mZnNldD0iMC4wOCIgc3RvcC1jb2xvcj0iIzAwOTRGRiIvPgo8c3RvcCBvZmZzZXQ9IjAuMTYiIHN0b3AtY29sb3I9IiM0OEZGOTEiLz4KPHN0b3Agb2Zmc2V0PSIwLjQyIiBzdG9wLWNvbG9yPSIjMDA5NEZGIi8+CjxzdG9wIG9mZnNldD0iMC42OCIgc3RvcC1jb2xvcj0iIzAwMzhGRiIvPgo8c3RvcCBvZmZzZXQ9IjAuOSIgc3RvcC1jb2xvcj0iIzA1MDBGRiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPgo=" alt="" hidden></span>
         <div class="txt">
           <div class="nm" id="conn-name">Phantom</div>
@@ -2014,6 +2022,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
         <span class="wl-conn-pill">CONNECTED</span>
         <img class="conn-chev" src="data:image/svg+xml;base64,PHN2ZyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiBvdmVyZmxvdz0idmlzaWJsZSIgc3R5bGU9ImRpc3BsYXk6IGJsb2NrOyIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiB2aWV3Qm94PSIwIDAgMjAgMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxnIGlkPSJTVkciPgo8cGF0aCBpZD0iVmVjdG9yIiBkPSJNMTUuMDY0OSA2Ljc1MjA0QzE1LjE0MTggNi42NzI0NSAxNS4yMzM3IDYuNjA4OTYgMTUuMzM1NCA2LjU2NTI5QzE1LjQzNzEgNi41MjE2MSAxNS41NDY0IDYuNDk4NjIgMTUuNjU3MSA2LjQ5NzY2QzE1Ljc2NzcgNi40OTY3IDE1Ljg3NzQgNi41MTc3OSAxNS45Nzk5IDYuNTU5NjlDMTYuMDgyMyA2LjYwMTU5IDE2LjE3NTMgNi42NjM0NiAxNi4yNTM2IDYuNzQxNzFDMTYuMzMxOCA2LjgxOTk1IDE2LjM5MzcgNi45MTMgMTYuNDM1NiA3LjAxNTQxQzE2LjQ3NzUgNy4xMTc4MiAxNi40OTg2IDcuMjI3NTYgMTYuNDk3NiA3LjMzODJDMTYuNDk2NiA3LjQ0ODg1IDE2LjQ3MzYgNy41NTgyIDE2LjQzIDcuNjU5ODdDMTYuMzg2MyA3Ljc2MTU0IDE2LjMyMjggNy44NTM1IDE2LjI0MzIgNy45MzAzN0wxMS4yNDMyIDEyLjkzMDRDMTEuMDg3IDEzLjA4NjYgMTAuODc1IDEzLjE3NDQgMTAuNjU0MSAxMy4xNzQ0QzEwLjQzMzEgMTMuMTc0NCAxMC4yMjEyIDEzLjA4NjYgMTAuMDY0OSAxMi45MzA0TDUuMDY0ODkgNy45MzAzN0w1LjAwODIyIDcuODY3MDRDNC44ODAxNiA3LjcwNjk0IDQuODE1NiA3LjUwNTI0IDQuODI2OTEgNy4zMDA1M0M0LjgzODIyIDcuMDk1ODMgNC45MjQ1OSA2LjkwMjQ3IDUuMDY5NTEgNi43NTc0NUM1LjIxNDQzIDYuNjEyNDIgNS40MDc3MiA2LjUyNTkxIDUuNjEyNDMgNi41MTQ0NkM1LjgxNzEzIDYuNTAzMDEgNi4wMTg4NiA2LjU2NzQyIDYuMTc5MDYgNi42OTUzN0w2LjI0MjM5IDYuNzUyMDRMMTAuNjU0MSAxMS4xNjI5TDE1LjA2NDkgNi43NTIwNFoiIGZpbGw9IiM5RkJFRDAiLz4KPC9nPgo8L3N2Zz4K" alt="">
       </div>
+      <div class="wl-disc-link post-c" data-action="disconnect-open" role="button" tabindex="0">Disconnect</div>
       <div class="wl-otherwallet" data-action="other-wallet">
         <span class="t">Use Other Wallet</span>
         <span class="logos">
@@ -2077,7 +2086,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
       <div class="md-qr-wrap"><div class="md-qr" id="md-qr"></div></div>
       <div class="wl-or md-or"><span>Or</span></div>
       <div class="md-card">
-        <div class="wl-connected post-c" data-action="mdeposit-wallet">
+        <div class="wl-connected post-c" data-action="connected-continue">
           <span class="wlogo"><img id="md-conn-logo-phantom" src="data:image/svg+xml;base64,PHN2ZyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiBvdmVyZmxvdz0idmlzaWJsZSIgc3R5bGU9ImRpc3BsYXk6IGJsb2NrOyIgd2lkdGg9IjE3LjMzMzMiIGhlaWdodD0iMTcuMzMzMyIgdmlld0JveD0iMCAwIDE3LjMzMzMgMTcuMzMzMyIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgaWQ9IkZyYW1lIDE5NDg3NjA2OTUiPgo8cGF0aCBpZD0iVmVjdG9yIiBkPSJNMi4wNTEwNCAxNS4xNjY3QzQuMjYyOTUgMTUuMTY2NyA1LjkyNTI0IDEzLjI4OTcgNi45MTcyMSAxMS44MDY2QzYuNzk2NTggMTIuMTM0NyA2LjcyOTU2IDEyLjQ2MjkgNi43Mjk1NiAxMi43Nzc5QzYuNzI5NTYgMTMuNjQ0MiA3LjIzODk2IDE0LjI2MTEgOC4yNDQ0IDE0LjI2MTFDOS42MjUxMyAxNC4yNjExIDExLjA5OTggMTMuMDc5OCAxMS44NjM5IDExLjgwNjZDMTEuODEwMyAxMS45OTA0IDExLjc4MzUgMTIuMTYxIDExLjc4MzUgMTIuMzE4NUMxMS43ODM1IDEyLjkyMjMgMTIuMTMyIDEzLjMwMjkgMTIuODQyNCAxMy4zMDI5QzE1LjA4MTIgMTMuMzAyOSAxNy4zMzMzIDkuNDMwOTggMTcuMzMzMyA2LjA0NDY2QzE3LjMzMzMgMy40MDY0OSAxNS45NjU5IDEuMDgzMzMgMTIuNTM0MiAxLjA4MzMzQzYuNTAxNjQgMS4wODMzMyAwIDguMjc1OTYgMCAxMi45MjIzQzAgMTQuNzQ2NyAxLjAwNTQxIDE1LjE2NjcgMi4wNTEwNCAxNS4xNjY3Wk0xMC40NTYzIDUuNzU1OUMxMC40NTYzIDUuMDk5NjQgMTAuODMxNiA0LjY0MDI2IDExLjM4MTMgNC42NDAyNkMxMS45MTc1IDQuNjQwMjYgMTIuMjkyOCA1LjA5OTY0IDEyLjI5MjggNS43NTU5QzEyLjI5MjggNi40MTIxNyAxMS45MTc1IDYuODg0NjcgMTEuMzgxMyA2Ljg4NDY3QzEwLjgzMTYgNi44ODQ2NyAxMC40NTYzIDYuNDEyMTcgMTAuNDU2MyA1Ljc1NTlaTTEzLjMyNTEgNS43NTU5QzEzLjMyNTEgNS4wOTk2NCAxMy43MDA1IDQuNjQwMjYgMTQuMjUwMSA0LjY0MDI2QzE0Ljc4NjMgNC42NDAyNiAxNS4xNjE2IDUuMDk5NjQgMTUuMTYxNiA1Ljc1NTlDMTUuMTYxNiA2LjQxMjE3IDE0Ljc4NjMgNi44ODQ2NyAxNC4yNTAxIDYuODg0NjdDMTMuNzAwNSA2Ljg4NDY3IDEzLjMyNTEgNi40MTIxNyAxMy4zMjUxIDUuNzU1OVoiIGZpbGw9IiNGRkZERjgiLz4KPC9nPgo8L3N2Zz4K" alt=""><img id="md-conn-logo-trust" src="data:image/svg+xml;base64,PHN2ZyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiBvdmVyZmxvdz0idmlzaWJsZSIgc3R5bGU9ImRpc3BsYXk6IGJsb2NrOyIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE1Ljc0OTYiIHZpZXdCb3g9IjAgMCAxNCAxNS43NDk2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8ZyBpZD0iR3JvdXAgODIzNDI2ODMzIj4KPHBhdGggaWQ9IlZlY3RvciIgZD0iTTAgMi4yNzUxM0w2Ljk5OTQzIDBWMTUuNzQ5NkMxLjk5OTg0IDEzLjY0OTYgMCA5LjYyNDkyIDAgNy4zNTA5NFYyLjI3NTEzWiIgZmlsbD0iIzA1MDBGRiIvPgo8cGF0aCBpZD0iVmVjdG9yXzIiIGQ9Ik0xNCAyLjI3NTEzTDcuMDAwNTcgMFYxNS43NDk2QzEyLjAwMDIgMTMuNjQ5NiAxNCA5LjYyNDkzIDE0IDcuMzQ5OFYyLjI3NTEzWiIgZmlsbD0idXJsKCNwYWludDBfbGluZWFyXzBfMTQwKSIvPgo8L2c+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfMF8xNDAiIHgxPSIxMi4wNzMzIiB5MT0iLTAuODg5NzU3IiB4Mj0iNi43ODYwMSIgeTI9IjE1Ljc0NzgiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agb2Zmc2V0PSIwLjAyIiBzdG9wLWNvbG9yPSIjMDAwMEZGIi8+CjxzdG9wIG9mZnNldD0iMC4wOCIgc3RvcC1jb2xvcj0iIzAwOTRGRiIvPgo8c3RvcCBvZmZzZXQ9IjAuMTYiIHN0b3AtY29sb3I9IiM0OEZGOTEiLz4KPHN0b3Agb2Zmc2V0PSIwLjQyIiBzdG9wLWNvbG9yPSIjMDA5NEZGIi8+CjxzdG9wIG9mZnNldD0iMC42OCIgc3RvcC1jb2xvcj0iIzAwMzhGRiIvPgo8c3RvcCBvZmZzZXQ9IjAuOSIgc3RvcC1jb2xvcj0iIzA1MDBGRiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPgo=" alt="" hidden></span>
           <div class="txt">
             <div class="nm" id="md-conn-name">Phantom</div>
@@ -2137,7 +2146,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
     </div>
   </div>
 
-  <!-- Connected-wallet drawer — tap the CONNECTED row to manage/disconnect -->
+  <!-- Connected-wallet drawer — opened via the Disconnect link (the row itself continues the flow) -->
   <div class="wl-sheet" id="wl-disconnect">
     <div class="wl-header">
       <div class="hbtn" data-action="disconnect-cancel"><img src="data:image/svg+xml;base64,PHN2ZyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiBvdmVyZmxvdz0idmlzaWJsZSIgc3R5bGU9ImRpc3BsYXk6IGJsb2NrOyIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiB2aWV3Qm94PSIwIDAgMjAgMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxnIGlkPSJTVkciPgo8cGF0aCBpZD0iVmVjdG9yIiBkPSJNMTUuMDY0OSA2Ljc1MjA0QzE1LjE0MTggNi42NzI0NSAxNS4yMzM3IDYuNjA4OTYgMTUuMzM1NCA2LjU2NTI5QzE1LjQzNzEgNi41MjE2MSAxNS41NDY0IDYuNDk4NjIgMTUuNjU3MSA2LjQ5NzY2QzE1Ljc2NzcgNi40OTY3IDE1Ljg3NzQgNi41MTc3OSAxNS45Nzk5IDYuNTU5NjlDMTYuMDgyMyA2LjYwMTU5IDE2LjE3NTMgNi42NjM0NiAxNi4yNTM2IDYuNzQxNzFDMTYuMzMxOCA2LjgxOTk1IDE2LjM5MzcgNi45MTMgMTYuNDM1NiA3LjAxNTQxQzE2LjQ3NzUgNy4xMTc4MiAxNi40OTg2IDcuMjI3NTYgMTYuNDk3NiA3LjMzODJDMTYuNDk2NiA3LjQ0ODg1IDE2LjQ3MzYgNy41NTgyIDE2LjQzIDcuNjU5ODdDMTYuMzg2MyA3Ljc2MTU0IDE2LjMyMjggNy44NTM1IDE2LjI0MzIgNy45MzAzN0wxMS4yNDMyIDEyLjkzMDRDMTEuMDg3IDEzLjA4NjYgMTAuODc1IDEzLjE3NDQgMTAuNjU0MSAxMy4xNzQ0QzEwLjQzMzEgMTMuMTc0NCAxMC4yMjEyIDEzLjA4NjYgMTAuMDY0OSAxMi45MzA0TDUuMDY0ODkgNy45MzAzN0w1LjAwODIyIDcuODY3MDRDNC44ODAxNiA3LjcwNjk0IDQuODE1NiA3LjUwNTI0IDQuODI2OTEgNy4zMDA1M0M0LjgzODIyIDcuMDk1ODMgNC45MjQ1OSA2LjkwMjQ3IDUuMDY5NTEgNi43NTc0NUM1LjIxNDQzIDYuNjEyNDIgNS40MDc3MiA2LjUyNTkxIDUuNjEyNDMgNi41MTQ0NkM1LjgxNzEzIDYuNTAzMDEgNi4wMTg4NiA2LjU2NzQyIDYuMTc5MDYgNi42OTUzN0w2LjI0MjM5IDYuNzUyMDRMMTAuNjU0MSAxMS4xNjI5TDE1LjA2NDkgNi43NTIwNFoiIGZpbGw9IiM5RkJFRDAiLz4KPC9nPgo8L3N2Zz4K" alt="Close"></div>
@@ -3553,8 +3562,9 @@ const ACTIONS = {
     try { await navigator.clipboard.writeText(MDEPOSIT_ADDR); demoToast('Address copied', 'This is the Figma placeholder address — do not send funds to it.'); }
     catch { demoToast('Copy failed', 'Clipboard access was blocked by the browser.'); }
   },
-  // the connected row = "deposit from this wallet": the old Deposit shortcut
-  'mdeposit-wallet'() {
+  // the connected row (both modals) = "deposit from this wallet" — it continues
+  // the flow (PO 2026-08-18); disconnect lives on its own link below the row
+  'connected-continue'() {
     if (SDK_MODE) { sdk.connection ? openAmountSdk() : go('picker'); return; }
     if (state.wallet) openAmount();
     else go('picker');
