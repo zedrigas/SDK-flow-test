@@ -763,24 +763,25 @@ img.coin { border-radius: 50%; }
 
 /* picker (6411:88950) — charcoal tiles barely lifted off the dark sheet */
 #wl-picker[data-skin="wg"] .wl-search, #wl-xpay-select[data-skin="wg"] .wl-search {
-  background: var(--wg-panel); border: 0; border-radius: 16px; height: 46px;
-  padding: 12px 16px; margin-bottom: 16px;
+  background: var(--wg-panel); border: 0; border-radius: 12px; height: 46px;
+  gap: 6px; padding: 14px; margin-bottom: 16px;
 }
 #wl-picker[data-skin="wg"] .wl-search input, #wl-xpay-select[data-skin="wg"] .wl-search input { color: var(--wg-body); font: 500 14px/18px var(--font-wg); }
 #wl-picker[data-skin="wg"] .wl-search input::placeholder, #wl-xpay-select[data-skin="wg"] .wl-search input::placeholder { color: var(--wg-helper); }
 #wl-picker[data-skin="wg"] .wl-tile {
-  background: var(--wg-chip); border-radius: 12px; padding: 12px; position: relative;
+  /* 56px tall per frame: py 16 + 24px icon (6411:88957) */
+  background: var(--wg-chip); border-radius: 12px; padding: 16px 12px; position: relative;
 }
 #wl-picker[data-skin="wg"] .wl-tile .name { color: var(--wg-body); font: 500 14px/18px var(--font-wg); }
-#wl-picker[data-skin="wg"] .wl-tile .logo { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; border: 0.5px solid rgba(255, 255, 255, 0.10); }
+#wl-picker[data-skin="wg"] .wl-tile .logo { width: 24px; height: 24px; flex: 0 0 24px; border-radius: 6px; border: 0.5px solid rgba(255, 255, 255, 0.10); }
 #wl-picker[data-skin="wg"] .wl-badge {
   position: absolute; top: 4px; right: 4px;
   font: 500 9px/12px var(--font-wg); color: #fff;
   background: var(--wg-border); border-radius: 6px; padding: 1px 6px;
 }
 #wl-picker[data-skin="wg"] .wl-badge.recent { background: var(--wg-cta); }
-#wl-picker[data-skin="wg"] .wl-grid { gap: 8px; }
-#wl-picker[data-skin="wg"] .wl-grid .row { gap: 8px; }
+/* grid gaps: the base 4px IS the frame value (tiles 174w at x=0/178 in 352) —
+   no wg override; checks/figma-spec.mjs guards it */
 
 /* amount (6411:88879 / error 88928) */
 #wl-amount[data-skin="wg"] .wl-amount-body { padding-top: 24px; justify-content: space-between; min-height: 0; }
@@ -922,9 +923,9 @@ img.coin { border-radius: 50%; }
   background: var(--wg-chip); border-radius: 16px; padding: 16px; gap: 12px; border-top: 0;
 }
 #wl-summary[data-skin="wg"] .sum-breakdown .bd-total-row { display: none; }
-#wl-summary[data-skin="wg"] .sum-breakdown .kv .k, #wl-xpay[data-skin="wg"] .sum-breakdown .kv .k, #wl-cb-confirm[data-skin="wg"] .sum-breakdown .kv .k { color: var(--wg-label); font: 500 13px/17px var(--font-wg); }
-#wl-summary[data-skin="wg"] .sum-breakdown .kv .v, #wl-xpay[data-skin="wg"] .sum-breakdown .kv .v, #wl-cb-confirm[data-skin="wg"] .sum-breakdown .kv .v { display: flex; align-items: center; gap: 6px; color: var(--wg-body); font: 500 13px/17px var(--font-wg); }
-#wl-summary[data-skin="wg"] .sum-breakdown .kv .v .bd-coin, #wl-xpay[data-skin="wg"] .sum-breakdown .kv .v .bd-coin, #wl-cb-confirm[data-skin="wg"] .sum-breakdown .kv .v .bd-coin { width: 14px; height: 14px; }
+#wl-summary[data-skin="wg"] .sum-breakdown .kv .k, #wl-xpay[data-skin="wg"] .sum-breakdown .kv .k, #wl-cb-confirm[data-skin="wg"] .sum-breakdown .kv .k { color: var(--wg-label); font: 500 14px/18px var(--font-wg); }
+#wl-summary[data-skin="wg"] .sum-breakdown .kv .v, #wl-xpay[data-skin="wg"] .sum-breakdown .kv .v, #wl-cb-confirm[data-skin="wg"] .sum-breakdown .kv .v { display: flex; align-items: center; gap: 6px; color: var(--wg-body); font: 500 14px/18px var(--font-wg); }
+#wl-summary[data-skin="wg"] .sum-breakdown .kv .v .bd-coin, #wl-xpay[data-skin="wg"] .sum-breakdown .kv .v .bd-coin, #wl-cb-confirm[data-skin="wg"] .sum-breakdown .kv .v .bd-coin { width: 16px; height: 16px; }
 .sum-banner {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   background: #c94f4f; color: #fff; font: 500 12px/16px var(--font-wg);
@@ -955,8 +956,9 @@ img.coin { border-radius: 50%; }
 #wl-summary[data-skin="wg"]:has(#sum-breakdown.open) .sum-foot {
   display: none;
 }
+#wl-summary[data-skin="wg"]:has(#sum-breakdown.open) .sum-rows { gap: 24px; }
 #wl-summary[data-skin="wg"]:has(#sum-breakdown.open) .sum-amount-wg {
-  align-items: center; gap: 6px;
+  align-items: center; gap: 12px;
 }
 #wl-summary[data-skin="wg"]:has(#sum-breakdown.open) .sum-amount-wg .row {
   flex-direction: column; align-items: center; gap: 6px;
@@ -964,7 +966,7 @@ img.coin { border-radius: 50%; }
 #wl-summary[data-skin="wg"]:has(#sum-breakdown.open) .sum-amount-wg .v { display: none; }
 .bd-hero { display: none; }
 #wl-summary[data-skin="wg"]:has(#sum-breakdown.open) .bd-hero {
-  display: block; color: var(--wg-body); font: 500 34px/40px var(--font-wg); text-align: center; width: 100%;
+  display: block; color: var(--wg-body); font: 700 28px/38px var(--font-wg); text-align: center; width: 100%;
 }
 #wl-summary[data-skin="wg"]:has(#sum-breakdown.open) .sum-amount-wg { padding-top: 28px; }
 #wl-summary[data-skin="wg"]:has(#sum-breakdown.open) .sum-amount-wg .v .coin {
@@ -978,26 +980,24 @@ img.coin { border-radius: 50%; }
 @media (max-width: 1023px) {
   #wl-depositing[data-skin="wg"] { border-radius: 28px; }
 }
-#wl-depositing[data-skin="wg"] .wl-spin-wrap { padding: 8px 0 16px; }
+#wl-depositing[data-skin="wg"] .wl-spin-wrap { gap: 24px; padding: 8px 0 16px; }
 /* Figma keeps only the "Confirm transaction" lede in the header — the tail stays
    in the DOM (textContent is behavior-asserted) but never renders */
 #wl-depositing[data-skin="wg"] .dep-title-tail { display: none; }
 /* Figma 89001 shows no status line above the sub-copy — text stays in the DOM
    (textContent is behavior-asserted) but is not painted */
 #wl-depositing[data-skin="wg"] .wl-progress-txt { display: none; }
-#wl-depositing[data-skin="wg"] .dep-sub { color: var(--wg-helper); font: 400 13px/18px var(--font-wg); }
-/* Figma's ring hugs tight to the badge (small crescent), not the base 80px
-   track sized for the wl-skin spinner — shrink so the gap matches */
-/* waiting frame: a long arc (top→right→bottom-right) hugging the 40px badge
-   at a 2-3px gap — 48px box = 40 badge + 2 gap + 2 border per side */
-#wl-depositing[data-skin="wg"] .wl-spinner { width: 48px; height: 48px; }
+#wl-depositing[data-skin="wg"] .dep-sub { color: var(--wg-helper); font: 500 14px/18px var(--font-wg); }
+/* Figma 6411:89009: 60px loading ring (3213:39289) around a 28px badge tile
+   (3213:39291, radius 8) — machine-extracted; checks/figma-spec.mjs guards it */
+#wl-depositing[data-skin="wg"] .wl-spinner { width: 60px; height: 60px; }
 #wl-depositing[data-skin="wg"] .wl-spinner .arc { border-top-color: #fff; border-right-color: #fff; }
 /* under reduced motion the spin STOPS (an infinite 1ms loop is still a random
    pose per frame — the parity capture needs one deterministic pose) */
 @media (prefers-reduced-motion: reduce) {
   .wl-spinner .arc, .login-ring .arc { animation: none !important; }
 }
-#wl-depositing[data-skin="wg"] .wl-spinner .badge { width: 40px; height: 40px; border-radius: 12px; }
+#wl-depositing[data-skin="wg"] .wl-spinner .badge { width: 28px; height: 28px; border-radius: 8px; }
 /* Figma spinner shows only the animated arc, no full ring track underneath */
 #wl-depositing[data-skin="wg"] .wl-spinner .ring { border-color: transparent; }
 
@@ -4199,14 +4199,32 @@ const showAmt = (amount, sym) => R.swapped.formatTokenAmount({
   balance: String(amount || '0'), token: sym, firstNonZeroDecimal: true,
 }) + (sym ? ' ' + sym : '');
 
+/**
+ * A rate can be PRESENT yet unusable: staging returns garbage rates whose $1
+ * conversion truncates to zero at the token's decimals — the real-Phantom
+ * probe caught a USDT default freezing the whole amount card that way.
+ * "Converts" means the production converter yields a positive amount for $1.
+ */
+function tokenConverts(b) {
+  const rate = Number(b?.exchangeRate || 0);
+  if (!(rate > 0)) return false;
+  try {
+    return parseFloat(R.swapped.convertFiatToCrypto({
+      amountFiat: '1', exchangeRate: rate,
+      maxDecimals: Math.min(Number(b?.decimals) || 8, 8),
+    })) > 0;
+  } catch { return false; }
+}
+
 function pickDefaultToken() {
   const usable = sdk.balances.filter(sessionAccepts);
   const pool = usable.length ? usable : sdk.balances;
   // Balances arrive RATE-LESS first and enrich later (the SDK's own note). A
   // fiat sort over all-zero rows picked whatever the API listed first — on a
   // real wallet that was a zero-value BONK row, and $-conversion then yielded
-  // nothing (PO field bug). Prefer rows that can actually convert.
-  const rated = pool.filter((b) => Number(b?.exchangeRate || 0) > 0 || fiatOf(b) > 0);
+  // nothing (PO field bug). Prefer rows the $ field can actually convert;
+  // fiatValue alone is NOT proof (a garbage rate inflates it too).
+  const rated = pool.filter(tokenConverts);
   const scored = (rated.length ? rated : pool).slice().sort(
     (a, b) => (fiatOf(b) - fiatOf(a))
       || (Number(b.displayBalance || 0) - Number(a.displayBalance || 0)),
@@ -4341,7 +4359,8 @@ async function revalidateAmount() {
 function setSdkAmountFromUsd(usd) {
   const t = sdk.token;
   const rate = Number(t?.exchangeRate || 0);
-  if (!t || !(rate > 0)) { sdk.amount = ''; updateAmountSdk(); return; }
+  // a garbage rate that converts $1 to zero is the same dead-end as no rate
+  if (!t || !tokenConverts(t)) { sdk.amount = ''; updateAmountSdk(); return; }
   sdk.amount = usd > 0
     ? R.swapped.convertFiatToCrypto({
       amountFiat: String(usd),
@@ -4390,7 +4409,7 @@ function updateAmountSdk(forceMsg) {
     // A rate-less token is its own constraint: the $ field cannot convert, so
     // Continue stays dead with no explanation unless we give one (seen live
     // when the rates endpoint was rate-limited).
-    const noRate = t && !(Number(t.exchangeRate || 0) > 0)
+    const noRate = t && !tokenConverts(t)
       ? 'Live prices for ' + t.symbol + ' are unavailable right now. Pick another token or try again shortly.' : '';
     const hint = !issue ? (noRate || sdk.plan?.issues?.[0]?.message || '') : '';
     if (noRate && !issue && !forceMsg) {
@@ -4916,6 +4935,13 @@ function sdkErrorCopy(err) {
     default: {
       const msg = String(err?.message || err || '');
       if (/SDK_TIMEOUT/.test(msg)) return 'Swapped did not answer in time. Nothing was sent.';
+      // the gateway wraps the wallet's decline as a raw internal string
+      // ("SdkGateway sendTransaction failed: user_rejected — User rejected
+      // the request.") with a code the ERR map doesn't carry — a decline is
+      // a normal user action, never an error dump (real-Phantom probe)
+      if (/user[_ ]rejected|rejected the (request|transaction)/i.test(msg)) {
+        return 'You declined the transaction in your wallet.';
+      }
       // the wallet provider's "method and/or account has not been authorized"
       // leaks through the gateway as a raw internal string (PO field report) —
       // translate it, but keep the tail so support still sees the original
@@ -6123,7 +6149,14 @@ $('#session-env').addEventListener('click', () => {
   // probes can subscribe to SDK events (e.g. capture a WalletConnect pairing
   // URI and answer it with the QA peer wallet). Off by default; it reveals
   // nothing the same-origin page cannot already reach.
-  try { if (new URLSearchParams(location.search).has('debug')) window.__NOVA = R; } catch { /* no URL API — fine */ }
+  try {
+    if (new URLSearchParams(location.search).has('debug')) {
+      window.__NOVA = R;
+      // the QA probe reads the live token/balance state when a flow sticks —
+      // guessing the SDK's data shape from screenshots cost a full debug cycle
+      window.__NOVA_SDK = sdk;
+    }
+  } catch { /* no URL API — fine */ }
   // #session=<encoded> — one-time hand-off via link: a fragment never reaches
   // a server, the value is named back so a crafted link is visible, and it is
   // stripped from the address bar on the same tick.
