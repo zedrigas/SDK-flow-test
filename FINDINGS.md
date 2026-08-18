@@ -483,3 +483,132 @@ Two real defects it found, both mine, both worth recording because they are the 
 **Behavioural eval (37 shots): 2 failures, both proven non-defects.**
 - `21-error-rpc-down` — the v15 fallback chain makes a single endpoint failure a non-event by design; the rubric still demanded the old error toast, so correct behaviour was being graded as a fault.
 - `32-hover-game-card` — the judge read the centred play triangle as inline text after the title. Measured rather than eyeballed: computed `position: absolute`, **dx = 0** from the overlay centre. It only looks inline because the title wraps to three lines and ends beside that point. Rubric corrected in both cases rather than changing working code.
+
+---
+
+## v16.1 (2026-08-18) — the SDK, implemented against the shipped types
+
+The PO supplied the two official vendor guides (React, 182 pp; Core, 134 pp).
+Auditing the v16 code against them — and against the `.d.ts` files actually
+shipped in `node_modules` — found **38 defects**, with a single root cause:
+
+> `src/real/swapped.js` (the adapter) was written against the real types and was
+> sound. The journey layer in `src/app.js` was written against a **guessed** API
+> surface. Almost every field name it read does not exist.
+
+None of this was visible to the existing gates, because those gates drive the
+**simulation**. The SDK path had no contracts at all. It does now
+(`npm run check:sdk`, 40 contracts, fake client shaped from the `.d.ts`).
+
+### The eight that made a real payment impossible
+
+| # | Defect | What the user got |
+|---|---|---|
+| 1 | `#sum-cta` never received a `data-action` | **Confirm was inert. The payment was unreachable** — `submitSdk()` was dead code |
+| 2 | `getBalances()` returns `WalletBalancesForWallet[]`, unwrapped as a token list | every row rendered `undefined`; plans resolved with `network: undefined` |
+| 3 | `setConnected(addr, wallet)` — arguments swapped | address shown as `"phantom"`, and a Solana RPC read then wiped the SDK balances |
+| 4 | `requires_retry` matched none of `/fail\|reject\|error/` | **a transfer that did NOT happen was shown as success** |
+| 5 | `flow:'unavailable'` plans were truthy at all five gates | Confirm reachable with `destination: null` |
+| 6 | empty `connect()` result thrown as an error | the normal deep-link hand-off rendered a red failure banner |
+| 7 | all six transfer-status keys invented (0 of 10 real values handled) | deposit overlay frozen on one message for the whole transfer |
+| 8 | `fiatBalance` / `fiatPrice` do not exist (`fiatValue` / `exchangeRate` do) | every fiat figure `$0.00`; **typing a USD amount cleared the crypto amount, so Continue could never enable** |
+
+### Correctness of the money numbers
+
+- **Eligibility now comes from the SDK.** `balance.eligible` already encodes
+  "session destination match OR a swap/bridge route exists". The hand-rolled
+  network comparison was wrong in *both* directions: it hid every token that
+  could have swapped, and offered tokens whose network matched but whose coin
+  had no destination — which is what produced the `unavailable` plans above.
+- **Token identity, not index.** The drawer and its click handler each sorted
+  independently and addressed rows by position. They agreed only because the
+  sort key was `undefined` for every row; the moment that was fixed, the indices
+  would diverge and **the user would pay with a token they did not select**.
+- **Destination is `plan.destination.address`.** It was re-derived from the
+  session's wallet list by matching *network only* — ignoring `coin`, and unable
+  to express a swap/bridge target at all. `copy-recipient` was worse: it copied
+  the hardcoded Solana demo constant, which would lose a user's funds.
+- Quote fields are `networkFee{amount,symbol}` + `protocolFeeFiat`; there is no
+  `quote.fees.total`, and `#sum-receive`/`#sum-fee`/`#sum-to` are not in the DOM,
+  so all three writes were silent no-ops.
+- Amount validation is `transfer.validateAmount({plan, amount})` — it does not
+  throw, and it knows the **source-denominated** minimum for swap/bridge, which
+  the hand-rolled check could not compute. It deliberately does *not* check
+  balance, so that one check stays ours.
+
+### Two defects found while verifying the audit, not in it
+
+- **The legacy Phantom-injection detector repainted the SDK login sheet.** It
+  fires up to 1.5s after the sheet opens and called `renderLoginVariant()`
+  unconditionally — clobbering whatever the SDK had put there: the deep-link
+  hand-off copy, a WalletConnect QR, or a connect error banner. Now gated on
+  `!SDK_MODE`. This would have hit real users on the mobile deep-link path.
+- **Opening the wallet modal in SDK mode fired the whole simulation stack** — a
+  Solana RPC balance read plus a Jupiter price fetch — and then overwrote the
+  SDK's balances with its own. Now repaints from SDK state instead.
+
+Also fixed: markup carried hardcoded Solana. `#amt-token` had no `.sym` element
+(so the chosen token could never be named) and the code swapped only the bottom
+layer of the two-layer SOL mark, leaving the SOL overlay painted on top; the
+equivalence line's ` SOL` was a **static text node**, so a USDC deposit read
+"12.500000 SOL". Balance rows with no logo emitted `<img src="">`, which makes
+the browser re-request the page itself.
+
+### Exchange Pay and Coinbase — a third of the picker was unreachable
+
+Of 23 live payment methods, `exchange_pay` (Binance/KuCoin/Gate/Bybit/OKX/Krak)
+and `exchange_oauth` (Coinbase) were dead-ended with `demoToast('Not wired yet')`.
+The classifier itself was the bug: a hardcoded `WALLET_PROVIDERS` set that
+*included* `binance`, `okx`, `bybit`, `kraken` and `coinbase`, so those tiles
+were routed into a wallet connect that could never succeed. Routing is now on
+the method's own SDK `type` (a 7-value enum). Both flows are built:
+
+- **Exchange Pay is push-driven** — `createOrder()` wires its own websocket, so
+  nothing polls. Checkout is `checkout.{url, mobileUrl, qr}` where `qr` is either
+  a payload to encode *or* a pre-rendered image. Expiry is an **event**, never a
+  status (the status union is only `PENDING | PAY_SUCCESS | AWAITING_PROVIDER_FUNDS`).
+  `canClose` is false for Bybit and OKX, so the cancel affordance is conditional.
+- **Coinbase is promise-first** — the whole withdrawal state machine, 2FA
+  included, is the *resolved value* of `startWithdrawal`/`confirmWithdrawal`. A
+  **wrong 2FA code resolves to `requires2fa` again rather than throwing**, so the
+  error path is a return value, not a `catch`.
+- **There is no resend call.** Grepping all of `dist/`, `.js` included: no
+  `resend`, no `requestCode`. The 30s cooldown gates `startWithdrawal` **only**,
+  never `confirmWithdrawal`. The UI therefore offers re-enter or cancel, and
+  deliberately does not render a resend button we cannot back.
+
+Both screens are **functional but plainly styled and carry `data-unreviewed="1"`**
+— per PO decision, their visual design is held for supplied Figma node ids
+rather than invented, and they are excluded from parity scoring.
+
+### Upstream: the production wallet gateway (unchanged, still blocking)
+
+Every privileged wallet call routes through a hidden `{widgetBaseUrl}/gateway`
+iframe, and `ensureReady()` has **no timeout**, so a bad gateway hangs the wallet
+path forever with no symptom. The production failure is **not stable**:
+
+| when | `staging.swapped.app/gateway` | `connect.swapped.com/gateway` |
+|---|---|---|
+| 2026-08-16 | emits `{channel:'swapped-sdk',name:'ready'}` | `200`, no `cf-mitigated`, then silent 30s |
+| 2026-08-18 | `200`, real gateway HTML (24.5 KB) | **`403` Cloudflare "Just a moment…"** (5.7 KB) |
+
+So the earlier "Cloudflare is innocent" call was too strong — production *is*
+behind bot management on this route and staging is not. Either way no `ready`
+ever arrives. Wallet deposits are provable on **staging only**; Exchange Pay and
+Coinbase are plain REST/websocket and are unaffected. The SDK has a typed code
+for this (`WALLET_GATEWAY_NOT_READY`) which our own watchdog now raises.
+
+### Minor, worth knowing
+
+The merchant shell's footer price ticker calls Jupiter, and **both endpoints are
+currently dead** — `lite-api.jup.ag/price/v2` returns 404 and `price.jup.ag`
+fails DNS. The ticker degrades correctly (hides itself), so this is cosmetic,
+but the footer price has silently not worked for some time.
+
+### Gates
+
+`verify` (174) · `check` (unit) · `check:ui` · `check:figma` (82 × 2 viewports) ·
+**`check:sdk` (40, new)** — all green. The SDK contracts run against a fake
+client injected through `window.__SWAPPED_FACTORY`, with payload shapes copied
+from the `.d.ts`, so a wrong field name cannot pass. The dependency is now
+pinned exactly (`0.0.4`, was `^0.0.4`).
