@@ -24,7 +24,7 @@ The deployed `index.html` is self-contained. Sources live in `source/`:
     npm run check:ui
     npm run check:figma
     npm run check:figma-spec
-    npm run eval:grok          # Grok visual judge (needs XAI_API_KEY); skip-list is figma-spec
+    npm run eval:grok          # Grok visual judge (needs GROK_KEY or XAI_API_KEY)
     npm run check:sdk
     node verify.mjs
 

@@ -22,7 +22,7 @@ npm run eval:grok
 
 `check:figma-spec` is required every time (no API key).
 
-`eval:grok` needs `XAI_API_KEY` in the tests repo `.env`. If the key is missing, run the spec gate only and keep going. Do not stop and ask the PO for a key.
+`eval:grok` needs `GROK_KEY` or `XAI_API_KEY` in the tests repo `.env`. If the key is missing, run the spec gate only and keep going. Do not stop and ask the PO for a key.
 
 Then fix only:
 

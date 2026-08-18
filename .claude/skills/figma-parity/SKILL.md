@@ -31,7 +31,7 @@ node eval/parity-capture.mjs --screens=amount
 node eval/grok-grade.mjs --screens=amount
 ```
 
-Needs `XAI_API_KEY` in `../tests/.env` or the environment. Exit 2 = no key. Skip the Grok pass and still finish the spec gate. Do not stop to ask the PO.
+Needs `GROK_KEY` or `XAI_API_KEY` in `../tests/.env` or the environment. Exit 2 = no key. Skip the Grok pass and still finish the spec gate. Do not stop to ask the PO.
 
 The judge compares each build shot to `eval/reference/figma/<screen>.png`. It is forbidden to re-report padding, radius, font-size, or width that `figma-spec` already owns.
 
