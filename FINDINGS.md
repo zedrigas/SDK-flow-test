@@ -823,3 +823,85 @@ widget amount screen), and disconnect moved to a small underlined
 drawer; documented in figma-refs as a demo addition). Gates re-ran green:
 verify 178 · check · check:ui · check:figma · check:sdk · parity m-wallet +
 m-deposit both pass.
+
+---
+
+## v18 (2026-08-18) — SDK 0.0.5, Figma-true exchange screens, and the simulation is GONE
+
+Three things landed at once, all PO-directed: the 11 supplied Figma frames for
+Exchange Pay and Coinbase are implemented 1:1 (Stake palette per the standing
+mapping), **SDK 0.0.5** (published this morning) replaced 0.0.4, and — the big
+one — **the entire pre-SDK simulation was removed**. The PO's field test caught
+the old simulation still reachable on live v17: the wallet amount screen showed
+the demo's $0.25 cap and priced $100 at 0.25 SOL, because the sim's dead price
+feed fell back to its $400 money-safety constant. That class of bug is now
+impossible: there is exactly one engine in the page.
+
+### SDK 0.0.5 — a breaking release, ported same-day
+
+`transfer.resolve→getPlan`, `tryResolveDirect→getPlanSync`,
+`getBalancesForWallet→getWalletBalance`, `getSnapshot→getConnectionState`,
+`getAvailable()` now fetches payment methods itself, **`connect()` resolves ONE
+connection or `null`** (null = deep-link hand-off), quotes carry
+`estimatedTimeSeconds`, and `AvailableWallet.qrScanTarget` (`camera` |
+`wallet-app`) now states which QR a desktop host must render — replacing our
+hand-rolled deep-link heuristic with the SDK's own answer.
+
+### The design's structure, now the page's structure
+
+The frames revealed the flows REUSE the wallet screens' visual system:
+- **Exchange Pay**: amount-first (big `$`, currency chip, `$10–$500` quick
+  chips — 3033:3819) → the **Select-crypto overlay** with live search and
+  min-amount rows (3138:28812, exactly the amount/token-drawer relationship
+  the wallet flow has) → a From/To checkout with breakdown, a real QR with the
+  provider badge, and **"Continue in browser"** (3008:575) → the shared
+  depositing overlay with the provider's icon in the ring (3105:8006).
+- **Coinbase**: the login-ring step (3006:2321) → the wallet amount CARD
+  (Deposit label, Max pill, ⇅ equivalence, balance chip — 3033:11244), fiat
+  input converting through `exchangeRate` → a **confirm overlay with the 2FA
+  code inline** (3819:77692) → shared depositing (3819:79739) → shared success.
+- **Insufficient balance** (3275:56458) is now a real overlay raised whenever a
+  connected source holds nothing the session accepts — wallet and Coinbase both.
+- The wallet amount screen's quick chips adopted the design ladder
+  (`$10/$20/$50/$100/$500`); the `$0.01–$0.10` demo chips are gone.
+
+### What the purge removed
+
+The fake Phantom provider, the deeplink/universal-link machine, the simulated
+WalletConnect pairing (a QR renderer is all that survives), the Solana tx
+builder/broadcaster and its $0.25 cap, the RPC chain + drawer controls +
+`#rpc=` fragment, the auto-reconnect marker, the legacy login variants
+(Browser/Mobile tabs), the dead Jupiter price ticker, the static picker tiles
+(replaced by an honest "No payment session" state), the static token rows, and
+the manual-deposit placeholder address (now the session's REAL first
+destination). The bundle dropped **2.08 MB → 1.41 MB**.
+
+### Gates, rebuilt to match
+
+`checks/sdk-journey.mjs` (now ~70 contracts) is the journey gate, driven by the
+shared fake client `eval/fake-sdk.mjs` whose shapes are copied from the 0.0.5
+`.d.ts`. `verify.mjs` was rewritten to page-level contracts (boot, session
+intake, no-session honesty, widget mode, external-request zero). The Figma
+token gate walks the SDK journey. `checks/real-units.mjs` now unit-tests the
+session parser, env inference, error narrowing and the QR renderer. The
+interaction gate asserts the price ticker is GONE. Simulation-only parity
+screens are retired (recorded in eval/figma-refs.json); the 8 new frames are
+registered with SDK-mode capture drivers.
+
+Live proof re-run on this exact build: staging gateway ready, real WalletConnect
+pairing approved by the test peer, real balances with correct fiat — green.
+
+### v18 addendum — parity pipeline on the fake SDK, and one more real bug
+
+- The capture pipeline now drives ALL 28 parity screens through the shared fake
+  SDK client (20 rewired + the 8 new frames). Three screens are RETIRED with
+  the simulation, recorded in `eval/figma-refs.json`: the tabbed no-extension
+  login (`login-browser`, `login-qr-tabs`) and the deeplink resting screen
+  (`login-mobile`) — their UI states no longer exist on an SDK-only page.
+- Rewiring the captures caught a real bug: **`showOverlay()` hard-coded the
+  wallet amount sheet as the dimmed under-layer**, so the new Select-crypto,
+  Coinbase-confirm and insufficient-balance overlays dimmed the WRONG screen.
+  It now dims whatever sheet the user actually came from.
+- The 36-shot behavioral eval's simulation cases are retired (noted in
+  eval/rubric.md) pending an SDK-mode rewrite; the parity eval is the live
+  visual gate meanwhile.
