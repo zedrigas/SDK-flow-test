@@ -2006,7 +2006,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.10</span>
+    <span class="db-ver">v20.11</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -5009,9 +5009,23 @@ function openTokensSdk() {
     || (Number(!a.balanceTooLow) - Number(!b.balanceTooLow))
     || (Number(rated(b)) - Number(rated(a)))
     || (fiatOf(b) - fiatOf(a)));
+  // The same symbol on several chains rendered as identical rows (PO shot 13:
+  // USDC ×3, USDT ×4, nothing naming the chain). The .nm subtitle is
+  // display:none in this skin and CSS is out of this lane, so duplicate
+  // symbols carry the chain ON the sym line — "USDC · Solana" — the widget's
+  // disambiguation with zero style changes. Unique symbols stay bare.
+  const seenSyms = new Set();
+  const dupeSyms = new Set();
+  for (const x of rows) {
+    const s = String(x.symbol).toUpperCase();
+    if (seenSyms.has(s)) dupeSyms.add(s); else seenSyms.add(s);
+  }
   list.innerHTML = rows.map((b) => {
     const usable = sessionAccepts(b);
     const why = usable ? '' : ineligibleCopy(b);
+    const chain = R.swapped.getNetworkConfig(b.network)?.label || networkLabel(b.network);
+    const symText = dupeSyms.has(String(b.symbol).toUpperCase())
+      ? b.symbol + ' · ' + chain : b.symbol;
     return '<div class="tok-row' + (usable ? '' : ' disabled') + '" data-action="pick-token-sdk"'
       + ' data-key="' + esc(tokenKey(b)) + '"' + (usable ? '' : ' aria-disabled="true"') + '>'
       + '<div class="l"><span class="tok-ico">'
@@ -5019,7 +5033,7 @@ function openTokensSdk() {
       + (b.thumbnail || b.logo ? '<img class="coin" src="' + esc(b.thumbnail || b.logo) + '" alt="">' : '<span class="coin"></span>')
       + (b.tokenAddress ? '<span class="tok-net" title="' + esc(b.network) + '">' + esc(netBadge(b.network)) + '</span>' : '')
       + '</span>'
-      + '<div><div class="sym">' + esc(b.symbol) + '</div><div class="nm">' + esc(why || b.name || b.network) + '</div></div></div>'
+      + '<div><div class="sym">' + esc(symText) + '</div><div class="nm">' + esc(why || b.name || b.network) + '</div></div></div>'
       + '<div class="r"><div class="vals"><span class="amt">' + esc(showBal(b)) + '</span>'
       + '<span class="fiat">' + esc(showFiat(b)) + ' USD</span></div>'
       + '<span class="rchev">›</span></div></div>';
