@@ -2002,7 +2002,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.8</span>
+    <span class="db-ver">v20.9</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -5122,15 +5122,20 @@ function paintSummary() {
       // the decline banner outranks the flow note and must survive BOTH
       // paintSummary passes of one open (pre- and post-quote)
       banner.hidden = false;
+      banner.classList.remove('info');
       span.textContent = 'Transaction was cancelled';
     } else if (plan && plan.flow !== 'direct') {
+      // the swap/bridge note is an EXPLANATION, never a failure — the info
+      // class strips the fail chrome (PO shot 16); cancelled stays red
       banner.hidden = false;
+      banner.classList.add('info');
       span.textContent = plan.flow === 'swap'
         ? 'This pays by swapping ' + sym + ' to ' + (q?.amountOut?.symbol || 'the merchant’s token') + '.'
         : 'This pays by bridging to ' + (dest?.network || 'another network') + '.';
     } else {
       // a stale swap note must not leak into a later direct-flow summary
       banner.hidden = true;
+      banner.classList.remove('info');
     }
   }
 }
