@@ -8,6 +8,8 @@ A Stake-styled merchant page. The SDK owns connect, balances, quotes, and send. 
 
 Sources live in `source/` (gitignored). The tracked `index.html` is the built page.
 
+Before a visual polish pass, read `docs/POLISH.md`. Green gates are not enough. The PO still rejects the look.
+
 ## After any visual change
 
 Do this yourself. Do not ask the PO to run commands.
