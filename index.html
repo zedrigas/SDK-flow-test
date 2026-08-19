@@ -2002,7 +2002,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.6</span>
+    <span class="db-ver">v20.7</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -4154,6 +4154,59 @@ function paintLoginQr({ uri, deeplinkUrl, provider, icon }) {
   }
 }
 
+/**
+ * Popup-routed connects (Trust: the privileged connect runs in the Swapped
+ * gateway POPUP, which hands off to the extension's own window) can report
+ * POPUP_CLOSED while the Trust unlock is still on screen — the gateway popup
+ * closing is AMBIGUOUS, not a verdict (PO shots 11/12; the popup itself says
+ * "Don't close this window" while Trust approves). Hold the approve state and
+ * watch for the connection; only the grace timeout turns it into a real
+ * failure with Try again.
+ */
+let popupHoldRun = 0;
+let popupHoldTimer = 0;
+function holdForPopupApproval(provider, label, run) {
+  if (popupHoldRun === run) return; // repeated popup errors for one attempt
+  popupHoldRun = run;
+  clearInterval(popupHoldTimer);
+  $('#login-ring').classList.add('show');
+  $('#login-qr').hidden = true;
+  $('#login-qr-caption').hidden = true;
+  $('#login-banner').hidden = true;
+  $('#login-body').hidden = false;
+  $('#login-body').textContent = 'Approve the connection in ' + label + '.';
+  const cta = $('#login-cta');
+  cta.textContent = 'Connecting…';
+  cta.classList.add('disabled');
+  delete cta.dataset.action;
+  const startedAt = Date.now();
+  popupHoldTimer = setInterval(async () => {
+    if (run !== loginRun || !$('#wl-login')?.classList.contains('open')) {
+      clearInterval(popupHoldTimer);
+      return;
+    }
+    let live = null;
+    try {
+      live = (R.swapped.wallets.snapshot()?.connections || [])
+        .find((c) => connProvider(c) === provider && c.status === 'connected');
+    } catch { /* keep waiting */ }
+    if (live) {
+      clearInterval(popupHoldTimer);
+      // the wallets:connected handler may have adopted it already
+      if (sdk.connection?.walletId === live.walletId) return;
+      sdk.token = null; sdk.plan = null; sdk.quote = null;
+      await onSdkConnected(live);
+      return;
+    }
+    if (Date.now() - startedAt > 60_000) {
+      clearInterval(popupHoldTimer);
+      // a REAL close: a minute passed and no connection arrived — honest
+      // failure with a live Try again
+      sdkLoginFailed(new R.swapped.ConnectSdkError(R.swapped.ERR.WALLET_POPUP_CLOSED), label);
+    }
+  }, 2000);
+}
+
 /** Connect a real wallet. The SDK picks the transport; we render its states. */
 async function sdkConnect(provider) {
   pickedWallet = provider;
@@ -4339,6 +4392,12 @@ async function sdkConnect(provider) {
         live = best(rows);
       }
       if (live) { sdk.token = null; sdk.plan = null; sdk.quote = null; await onSdkConnected(live); return; }
+    }
+    // an ambiguous gateway-popup close/holdover is a WAIT, not a failure
+    const pc = R.swapped.codeOf(e);
+    if (pc === R.swapped.ERR.WALLET_POPUP_CLOSED || pc === R.swapped.ERR.WALLET_POPUP_IN_PROGRESS) {
+      holdForPopupApproval(provider, label, run);
+      return;
     }
     sdkLoginFailed(e, label);
   }
@@ -6467,7 +6526,16 @@ function wireSdkEvents() {
     const code = R.swapped.codeOf(err);
     if (code === R.swapped.ERR.WALLET_PAIRING_CANCELLED) return;
     const label = walletLabel(sdk.connection?.walletId || pickedWallet);
-    if ($('#wl-login')?.classList.contains('open')) { sdkLoginFailed(err, label); return; }
+    if ($('#wl-login')?.classList.contains('open')) {
+      // the same ambiguous popup-close arrives HERE as an event too — it must
+      // enter the same hold, not repaint the failure over it
+      if (code === R.swapped.ERR.WALLET_POPUP_CLOSED || code === R.swapped.ERR.WALLET_POPUP_IN_PROGRESS) {
+        holdForPopupApproval(pickedWallet, label, loginRun);
+        return;
+      }
+      sdkLoginFailed(err, label);
+      return;
+    }
     // connect-family codes have copy only in sdkConnectMessage; everything
     // else goes through the shared sdkErrorCopy map
     const E = R.swapped.ERR;
