@@ -1994,7 +1994,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.1</span>
+    <span class="db-ver">v20.3</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -4281,16 +4281,26 @@ async function sdkConnect(provider) {
     // carry walletId 'provider:transport' and a NULLABLE provider field, so
     // the match keys off connProvider (the PO's dead "already connected" case).
     if (R.swapped.codeOf(e) === R.swapped.ERR.WALLET_ALREADY_CONNECTED) {
-      const snap = R.swapped.wallets.snapshot();
-      const rows = (snap?.connections || []).filter((c) => connProvider(c) === provider);
+      const byProvider = (list) => (list || []).filter((c) => connProvider(c) === provider);
+      // connected first; a checking/needsReconnect row is still SUCCESS —
+      // submitSdk re-heals to 'connected' before anything signs
+      const best = (list) => list.find((c) => c.status === 'connected')
+        || list.find((c) => c.status === 'checking') || list[0] || null;
+      let rows = byProvider(R.swapped.wallets.snapshot()?.connections);
       let live = rows.find((c) => c.status === 'connected');
-      if (!live && rows.some((c) => c.status === 'needsReconnect' || c.status === 'checking')) {
-        // Silent re-hydrate only — NEVER { force: true } here (it opens the
-        // Swapped popup for requiresPopup connections outside a user gesture).
+      if (!live) {
+        // The gateway HOLDS a connection the client store never hydrated (the
+        // boot restore raced this click or failed silently) — the old code
+        // only reconnected when a row was VISIBLE, so an empty store fell
+        // straight into the fail banner under "already connected" (PO
+        // stop-ship shot). Re-hydrate unconditionally, then adopt the best
+        // row. Silent only — NEVER { force: true } (Swapped popup).
         try {
           const back = await R.swapped.wallets.reconnect();
-          live = (back || []).find((c) => connProvider(c) === provider && c.status === 'connected');
-        } catch { /* falls through to the honest failure */ }
+          rows = byProvider(back);
+          if (!rows.length) rows = byProvider(R.swapped.wallets.snapshot()?.connections);
+        } catch { /* adopt the best of whatever the store already has */ }
+        live = best(rows);
       }
       if (live) { sdk.token = null; sdk.plan = null; sdk.quote = null; await onSdkConnected(live); return; }
     }
@@ -4313,6 +4323,23 @@ function sdkLoginFailed(e, label) {
   // deliberate act, not a fault — no red banner. But the CTA must come back
   // to life, or the sheet is stranded on a disabled "Connecting…" (PO #2).
   if (code === R.swapped.ERR.WALLET_PAIRING_CANCELLED) {
+    const cta = $('#login-cta');
+    cta.textContent = 'Try again';
+    cta.classList.remove('disabled');
+    cta.dataset.action = 'login-retry-sdk';
+    return;
+  }
+  // Already-connected that could not be adopted (no row even after the
+  // re-hydrate — near-unreachable): "already connected" under a red "Log in
+  // failed" banner is a contradiction (PO stop-ship shot). Neutral body,
+  // live retry, NO banner — retry re-runs the adopt path.
+  if (code === R.swapped.ERR.WALLET_ALREADY_CONNECTED) {
+    $('#login-ring').classList.remove('show');
+    $('#login-qr').hidden = true;
+    $('#login-qr-caption').hidden = true;
+    $('#login-body').hidden = false;
+    $('#login-body').textContent = sdkConnectMessage(code, e, label);
+    $('#login-banner').hidden = true;
     const cta = $('#login-cta');
     cta.textContent = 'Try again';
     cta.classList.remove('disabled');
