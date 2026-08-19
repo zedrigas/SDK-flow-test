@@ -2002,7 +2002,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.7</span>
+    <span class="db-ver">v20.8</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -4746,7 +4746,29 @@ function planUnusable() {
   if (p.flow === 'unavailable' || !p.destination) {
     return p.issues?.[0]?.message || p.reason || 'No route from this token to the merchant.';
   }
+  // A swap/bridge whose destination has NO session wallet address has nowhere
+  // to pay into — that is the one case where NO_SESSION_WALLET truly blocks.
+  if ((p.flow === 'swap' || p.flow === 'bridge') && !p.destination?.address) {
+    return 'This session has no wallet that can receive '
+      + (p.destination?.symbol || 'the converted token') + '. Pick another token.';
+  }
   return null;
+}
+
+/**
+ * The amount-card hint for plan issues. NO_SESSION_WALLET on a USABLE
+ * swap/bridge plan is the SDK's planner explaining WHY the route swaps (dist:
+ * it attaches that issue to every non-direct plan) — backend jargon, not a
+ * user problem; the summary's "This pays by swapping…" note covers the route
+ * (PO shot 19). Any other issue surfaces verbatim.
+ */
+function planHint() {
+  const p = sdk.plan;
+  const issue = p?.issues?.[0];
+  if (!issue) return '';
+  if (issue.code === 'NO_SESSION_WALLET'
+    && (p.flow === 'swap' || p.flow === 'bridge') && p.destination?.address) return '';
+  return issue.message || '';
 }
 
 /**
@@ -4898,7 +4920,7 @@ function updateAmountSdk(forceMsg) {
     // when the rates endpoint was rate-limited).
     const noRate = t && !tokenConverts(t)
       ? 'Live prices for ' + t.symbol + ' are unavailable right now. Pick another token or try again shortly.' : '';
-    const hint = !issue ? (noRate || sdk.plan?.issues?.[0]?.message || '') : '';
+    const hint = !issue ? (noRate || planHint()) : '';
     if (noRate && !issue && !forceMsg) {
       // a minimum you cannot enter is useless while nothing converts — the
       // no-rate explanation outranks the min line
