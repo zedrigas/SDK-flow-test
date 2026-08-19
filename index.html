@@ -1545,7 +1545,10 @@ img.coin { border-radius: 50%; }
    and the 2FA frame (3819:77692) has no helper note under the code input.
    Nodes stay in the DOM (JS writes them); they just never paint. */
 #wl-details .kv:has(#det-price) { display: none; }
+#wl-details .kv:has(#det-slot) { display: none; }
 #cb-2fa-note { display: none; }
+/* a network letter-badge on an artwork-less disc reads as a broken glyph */
+.tok-ico:has(.coin:empty) .tok-net { display: none; }
 
 /* ---- merchant shell (src/merchant.css) — emitted last so merchant rules win ties ---- */
 /* ================= MERCHANT APP (white-label, Stake-style 1:1) ================= */
