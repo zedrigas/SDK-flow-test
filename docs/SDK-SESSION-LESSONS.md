@@ -158,10 +158,14 @@ mark maximum on the login sheet.
   CTA. Unresolved — needs a live check on what submit does with such a plan.
 - `tokens-refresh` was hardened, but the PO's original "does nothing" (tap never
   reaching the handler) was never reproduced or excluded live.
-- The `.db-ver` pin IS stale right now: the frontend session shipped v20.1
-  (live) and committed v20.2 (Stake branding), all carrying this SDK pass; the
-  tests-repo smoke pin (`tests/core/flowfeel-ios.spec.ts`) still asserts
-  'v19.6'. The next device smoke fails on the label unless the pin is synced to
-  the live header first.
+- `.db-ver` discipline: the smoke pin (`tests/core/flowfeel-ios.spec.ts`) is
+  synced to the live header ('v20.1', 2026-08-19). Standing hazard: the v20.2
+  build shipped still LABELED v20.1 — every deploy must bump the header, and
+  every bump must re-sync the pin, or the device smoke fails on the label.
+- Parked from the visual session's PASS-3 note (PO to schedule): data-URI icon
+  artwork for `eval/reference-client.mjs` fixtures (3 grok screens); the
+  Coinbase parity-capture drivers are stale against auto-connect (they click
+  `cb-connect`, which connected fixtures now skip); optionally surface the
+  2FA no-resend copy in the wrong-code error path.
 - Multichain event storms (late accountsChanged/chainChanged) are guarded but not
   stress-tested against a real multi-namespace approval.
