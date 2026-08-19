@@ -1315,6 +1315,9 @@ img.coin { border-radius: 50%; }
 #wl-cb[data-skin="wg"] .tok-list,
 #wl-xpay-select[data-skin="wg"] .tok-list,
 #wl-nobalance[data-skin="wg"] .tok-list { display: flex; flex-direction: column; gap: 8px; }
+/* vertical rhythm: block-stacked children left "or" crushed onto the CTA
+   (PO shot 09) — a flex column gives every break the same 16px of air */
+#wl-nobalance[data-skin="wg"] .wl-body { display: flex; flex-direction: column; gap: 16px; }
 #wl-xpay[data-skin="wg"] .tok-empty,
 #wl-cb[data-skin="wg"] .tok-empty,
 #wl-xpay-select[data-skin="wg"] .tok-empty {
@@ -1441,7 +1444,7 @@ img.coin { border-radius: 50%; }
 .nb-copy { color: var(--wg-helper); font: 400 13px/18px var(--font-wg); text-align: center; padding: 0 8px; }
 .nb-rows .tok-row { background: var(--wg-chip); border-radius: 12px; padding: 12px; display: flex; align-items: center; justify-content: space-between; }
 .nb-rows .l { display: flex; align-items: center; gap: 8px; }
-.nb-rows .coin { width: 28px; height: 28px; border-radius: 50%; background: var(--wg-panel); color: var(--wg-body); font: 700 12px/28px var(--font-wg); text-align: center; }
+.nb-rows .coin { width: 28px; height: 28px; border-radius: 50%; background: var(--wg-border); color: var(--wg-body); font: 700 12px/28px var(--font-wg); text-align: center; }
 .nb-rows img.coin { background: none; }
 .nb-rows .sym { color: var(--wg-body); font: 500 14px/18px var(--font-wg); }
 .nb-rows .rchev { color: var(--wg-helper); font: 500 16px/16px var(--font-wg); }
@@ -1462,7 +1465,9 @@ img.coin { border-radius: 50%; }
 .wl-nosession .wl-cta { width: auto; padding: 10px 22px; margin-top: 6px; }
 
 /* lettered stand-in coin (Coinbase balances / networks carry no artwork) */
-.nb-letter { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--wg-panel); color: var(--wg-body); font: 700 12px/1 var(--font-wg); }
+/* letter monogram disc: the panel tone read as a dark hole inside a chip row
+   (PO shot 09) — the border tone + a soft rim makes it a designed mark */
+.nb-letter { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--wg-border); color: var(--wg-body); font: 700 12px/1 var(--font-wg); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10); }
 #wl-cb .wl-token-chip .nb-letter { width: 14px; height: 14px; font-size: 8px; }
 
 /* 3008:575: the View-breakdown chevron sits inside a small circled outline */
@@ -2005,7 +2010,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.13</span>
+    <span class="db-ver">v20.14</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
