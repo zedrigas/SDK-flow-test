@@ -1379,6 +1379,9 @@ img.coin { border-radius: 50%; }
 
 /* 3138:28812 — Select crypto overlay rows */
 #wl-xpay-select[data-skin="wg"] { min-height: min(526px, 88svh); }
+/* select-crypto floats as a card: 28px on ALL corners (PO item 10) — the id
+   outranks the desktop .as-overlay rule that flattens the top corners */
+#wl-xpay-select[data-skin="wg"], #wl-xpay-select[data-skin="wg"].open { border-radius: 28px; }
 #wl-xpay-select .wl-body { gap: 24px; display: flex; flex-direction: column; }
 .xp-cur-list .tok-row { background: var(--wg-chip); border-radius: 16px; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
 .xp-cur-list .l { display: flex; align-items: center; gap: 8px; }
@@ -2010,7 +2013,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.14</span>
+    <span class="db-ver">v20.15</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
