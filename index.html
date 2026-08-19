@@ -2002,7 +2002,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.4</span>
+    <span class="db-ver">v20.5</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -4694,7 +4694,16 @@ function amountIssue() {
   if (bad) return bad;
   const n = parseFloat(sdk.amount);
   if (!(n > 0)) return null; // just empty, not an error
-  if (n > Number(t.displayBalance || 0)) return 'More than your ' + t.symbol + ' balance.';
+  if (n > Number(t.displayBalance || 0)) {
+    // name the REAL max (PO shot 15: "$4" over a ~$1 holding got a bare
+    // refusal) — the truthful ceiling is the same one Max fills
+    const rate = Number(t.exchangeRate || 0);
+    const maxFiat = rate > 0
+      ? R.swapped.convertCryptoToFiat({ amount: String(t.displayBalance), exchangeRate: rate, decimals: 2 })
+      : '';
+    return 'More than your ' + t.symbol + ' balance.'
+      + (maxFiat ? ' You can send up to $' + maxFiat + ' — Max fills it.' : '');
+  }
   const v = sdk.validation;
   if (v && v.amount === sdk.amount && v.result && v.result.ok === false) return v.result.message;
   return null;
@@ -4727,6 +4736,16 @@ function setSdkAmountFromUsd(usd) {
       maxDecimals: Math.min(Number(t.decimals) || 8, 8),
     })
     : '';
+  // The truncation trap (PO shot 14): every fiat figure on screen is cut to
+  // cents, so a $0.996 BONK holding reads "$0.99" — and typing the "$1" the
+  // user believes they own converts to ~0.4% MORE BONK than is spendable,
+  // tripping a false "More than your balance". A typed dollar within a cent
+  // of the holding's TRUE fiat value means "all of it" — clamp to the exact
+  // spendable amount, identical to Max. A real overshoot keeps the error.
+  const bal = Number(t.displayBalance || 0);
+  if (bal > 0 && parseFloat(sdk.amount) > bal && usd <= bal * rate + 0.011) {
+    sdk.amount = String(t.displayBalance);
+  }
   updateAmountSdk();
   revalidateAmount();
 }
