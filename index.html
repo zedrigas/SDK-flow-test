@@ -1548,11 +1548,11 @@ img.coin { border-radius: 50%; }
 .cb-banner[hidden] { display: none; }
 .cb-banner svg { width: 10px; height: 10px; flex: 0 0 10px; }
 
-/* PO 2026-08-18: the Wallet modal is the frame's full 683px (6389:112208,
-   confirmed via get_metadata) — the balance card absorbs the slack and
-   Use Other Wallet hugs its bottom, like the frame's card proportions */
+/* PO 2026-08-19 (supersedes the always-on 683 lock): CONNECTED wallets get
+   the frame's full 683px (6389:112208) with the balance card absorbing the
+   slack; DISCONNECTED hugs its two placeholder rows — no tall empty box */
 @media (min-width: 1024px) {
-  #wl-wallet { min-height: 683px; }
+  body[data-connected="1"] #wl-wallet { min-height: 683px; }
   #wl-wallet .wl-table { flex: 1 0 auto; }
   #wl-wallet .wl-otherwallet { margin-top: auto; }
 }
@@ -2013,7 +2013,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.15</span>
+    <span class="db-ver">v20.16</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -4617,6 +4617,11 @@ function pickDefaultToken() {
   return scored[0] || null;
 }
 
+// The two frame rows' own coin art (usdc.svg + the two-layer SOL mark),
+// captured before any repaint. A repaint used to be one-way: disconnect reset
+// the names to USDC/SOL but the last wallet's thumbnails stayed (PO shot — a
+// face on USDC, the $ mark on SOL).
+let merchantCoinArt = null;
 function paintMerchantBalances() {
   const total = sdk.balances.reduce((s, b) => s + fiatOf(b), 0);
   const fmt = (n) => '$' + R.swapped.formatCurrencyAmount(Number(n) || 0);
@@ -4629,31 +4634,38 @@ function paintMerchantBalances() {
   const ranked = sdk.balances.slice().sort((a, b) =>
     (fiatOf(b) - fiatOf(a)) || (Number(b.displayBalance || 0) - Number(a.displayBalance || 0)));
   const rows = $$('#wl-wallet .wl-table > .wl-row');
+  if (!merchantCoinArt) merchantCoinArt = rows.map((row) => $('.coin', row)?.outerHTML || '');
+  const setCoinArt = (row, html) => {
+    const coin = $('.coin', row);
+    if (coin && html && coin.outerHTML !== html) coin.outerHTML = html;
+  };
   rows.forEach((row, i) => {
     const b = ranked[i];
     const sym = $('.sym', row);
     const nm = $('.nm', row);
     const amt = $('.amt .post-c', row) || $('.amt', row);
     const fiat = $('.fiat .post-c', row) || $('.fiat', row);
-    const coin = $('.coin', row);
     if (!b) {
-      // disconnected / empty: keep the frame's two placeholder names
+      // disconnected / empty: the frame's two placeholder rows, art included
       if (sym) sym.textContent = i === 0 ? 'USDC' : 'SOL';
       if (nm) nm.textContent = i === 0 ? 'USD Coin' : 'Solana';
       if (amt) amt.textContent = '0.00000000';
       if (fiat) fiat.textContent = '$0.00 USD';
+      setCoinArt(row, merchantCoinArt[i]);
       return;
     }
     if (sym) sym.textContent = b.symbol || '';
     if (nm) nm.textContent = b.name || b.network || '';
     if (amt) amt.textContent = showBal(b);
     if (fiat) fiat.textContent = showFiat(b) + ' USD';
-    const src = b.thumbnail || b.logo || '';
-    if (coin && src) {
-      coin.classList.remove('sol-coin');
-      if (coin.tagName === 'IMG') coin.src = src;
-      else coin.innerHTML = '<img class="a" src="' + esc(src) + '" alt="">';
-    }
+    // USDC/SOL keep the markup's own marks; anything else prefers the SDK's
+    // logo (thumbnails are low-res "faces" — the PO shot's USDC portrait)
+    const ticker = String(b.symbol || '').toUpperCase();
+    const local = ticker === 'USDC' ? merchantCoinArt[0] : ticker === 'SOL' ? merchantCoinArt[1] : '';
+    const src = b.logo || b.thumbnail || '';
+    setCoinArt(row, local || (src
+      ? '<img class="coin" src="' + esc(src) + '" alt="">'
+      : '<span class="coin"></span>'));
   });
   const top = ranked[0];
   $$('.m-bal-post').forEach((el) => {
