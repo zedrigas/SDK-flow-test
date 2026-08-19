@@ -2014,7 +2014,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.18</span>
+    <span class="db-ver">v20.19</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -2423,6 +2423,9 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
             <span class="chip" data-usd="10">$10</span><span class="chip" data-usd="20">$20</span><span class="chip" data-usd="50">$50</span><span class="chip" data-usd="100">$100</span><span class="chip" data-usd="500">$500</span>
           </div>
           <div class="amt-login-retry" id="amt-login-retry" data-action="wallet-deposit" hidden>Log in</div>
+          <!-- swap/bridge meta strip (SPEC-swap-meta): painted by paintSwapMeta
+               only when the plan is non-direct AND a live quote exists -->
+          <div id="amt-swapmeta" hidden><div id="asm-line"><span id="asm-eta"></span><span class="asm-dot">·</span><span id="asm-fee"></span><span class="asm-dot">·</span><span id="asm-why" data-action="swapmeta-why" role="button" tabindex="0">Why swap?</span></div><div id="asm-help" hidden></div></div>
         </div>
       </div>
       <div class="amt-foot">
@@ -3372,6 +3375,13 @@ const ACTIONS = {
     syncAmountEntryUi();
     updateAmountSdk();
   },
+  // the swap-meta strip's "Why swap? / Why bridge?" — a simple in-place expand
+  'swapmeta-why'() {
+    const help = $('#asm-help');
+    if (!help) return;
+    help.hidden = !help.hidden;
+    if (!help.hidden) help.textContent = swapMetaHelp();
+  },
   'pick-token-sdk'(el) {
     // Look the token up by IDENTITY. The list and this handler used to sort
     // independently and address rows by index — the moment those two sorts
@@ -3389,16 +3399,16 @@ const ACTIONS = {
   },
   'tokens-close'() { openAmountSdk(); },
   // "Refresh did nothing" was indistinguishable from "refreshed, nothing
-  // changed" — the control must show the fetch happening (PO #5). Repaint the
-  // list IN PLACE (tokenList), not via openTokensSdk: re-running showSheet on
-  // an already-open drawer replays its opening transition.
+  // changed" — the control must show the fetch happening (PO #5). Repaint via
+  // renderTokenRows, never openTokensSdk: re-running showSheet on an already-
+  // open drawer replays its opening transition.
   async 'tokens-refresh'(el) {
     if (el?.dataset.busy) return;
     const label = el ? el.lastChild : null; // the text node after the svg
     if (el) { el.dataset.busy = '1'; if (label) label.textContent = 'Refreshing…'; }
     try {
       await loadSdkBalances();
-      tokenList();
+      renderTokenRows();
     } finally {
       if (el) { delete el.dataset.busy; if (label) label.textContent = 'Refresh'; }
     }
@@ -4084,6 +4094,7 @@ const sdk = {
   entry: 'fiat',      // which denomination the amount input takes: 'fiat' | 'crypto' (the ⇅ flip)
   plan: null,         // WalletTransferPlan from transfer.resolve
   quote: null,        // WalletTransferQuote from transfer.getQuote
+  amtQuote: null,     // { quote, stamp } — the amount screen's swap/bridge pricing strip; NEVER the submit quote
   min: null,          // WalletTransferMinAmount { crypto, fiat? }
   amount: '',         // human crypto amount, as typed
   submitting: false,
@@ -4559,12 +4570,12 @@ async function loadSdkBalances({ warnEmpty } = {}) {
  */
 function sessionAccepts(bal) { return !!bal?.eligible; }
 
-/** Why a row is greyed out, in the SDK's own vocabulary. */
+/** Why a row is greyed out — the widget's own two strings (SPEC-token-rows). */
 function ineligibleCopy(bal) {
   switch (bal?.ineligibleReason) {
-    case 'zero_balance': return 'No balance';
-    case 'below_min': return 'Below minimum';
-    case 'unsupported': return 'Not accepted here';
+    case 'zero_balance': return 'Not enough balance';
+    case 'below_min': return 'Not enough balance';
+    case 'unsupported': return 'Not supported';
     default: return '';
   }
 }
@@ -4584,6 +4595,22 @@ const showBal = (b) => b?.formatted?.balance
 const showAmt = (amount, sym) => R.swapped.formatTokenAmount({
   balance: String(amount || '0'), token: sym, firstNonZeroDecimal: true,
 }) + (sym ? ' ' + sym : '');
+
+// Widget number rules (SPEC-token-rows): compact from 10k up via the SDK's own
+// formatter — it already uppercases and strips only ALL-zero fractions
+// ("1.20M" is the widget's own output, keep it verbatim); below 10k, HALF-UP
+// to the per-token display decimals, trailing zeros dropped.
+const TOKEN_DP = { USDT: 2, USDC: 2, DAI: 2, BTC: 6, ETH: 6, WBTC: 6, SHIB: 0, PEPE: 0, BABYDOGE: 0, BONK: 0, PUMP: 0 };
+function compactBal(b) {
+  const n = Number(b?.displayBalance || 0);
+  if (n >= 10000) {
+    const c = R.swapped.formatCompactTokenAmount(n);
+    if (c) return c;
+  }
+  const dp = TOKEN_DP[String(b?.symbol || '').toUpperCase()] ?? 3;
+  const s = (Math.round((n + Number.EPSILON) * Math.pow(10, dp)) / Math.pow(10, dp)).toFixed(dp);
+  return s.replace(/\.0+$|(\.\d*?)0+$/, '$1');
+}
 
 /**
  * A rate can be PRESENT yet unusable: staging returns garbage rates whose $1
@@ -4731,6 +4758,7 @@ let planRun = 0; // a late resolve for a SUPERSEDED token must never write
 async function resolvePlan() {
   const run = ++planRun;
   sdk.plan = null; sdk.min = null; sdk.validation = null;
+  invalidateAmtQuote(); // a new plan generation orphans the strip's pricing
   const t = sdk.token, w = sdk.connection;
   if (!t || !w) return;
   const req = {
@@ -4866,6 +4894,104 @@ async function revalidateAmount() {
   } catch { /* validation is advisory; the CTA still has the sync checks */ }
 }
 
+/* ---- amount-screen swap/bridge meta strip (SPEC-swap-meta) ----
+   Prices the "{time}mins · Fee $x · Why swap?" line for NON-direct plans.
+   Wholly separate from sdk.quote — the summary/submit lifecycle is untouched. */
+let amtQuoteRun = 0;   // a superseded quote must never paint (spec rule)
+let amtQuoteTimer = 0;
+/** Identity of what a quote priced: token + typed amount + the plan GENERATION
+    (same token/amount on a re-resolved plan is a different route). */
+function amtQuoteStamp() {
+  return [sdk.token ? tokenKey(sdk.token) : '', sdk.amount, planRun].join('~');
+}
+function invalidateAmtQuote() {
+  amtQuoteRun++; // in-flight fetches may not land
+  clearTimeout(amtQuoteTimer);
+  sdk.amtQuote = null;
+  paintSwapMeta();
+}
+function scheduleAmtQuote() {
+  const p = sdk.plan;
+  // under-min is deliberately NOT an amountIssue (Continue snaps it) — but a
+  // quote for it is doomed, so it gates here
+  const want = p && (p.flow === 'swap' || p.flow === 'bridge') && !planUnusable()
+    && parseFloat(sdk.amount) > 0 && !amountIssue() && !amountUnderMin();
+  if (!want) {
+    if (sdk.amtQuote) invalidateAmtQuote(); else paintSwapMeta();
+    return;
+  }
+  // updateAmountSdk runs on many no-change paths (enrichment, validation
+  // landings, flip) — an identical stamp is already priced, never re-fetch
+  if (sdk.amtQuote && sdk.amtQuote.stamp === amtQuoteStamp()) { paintSwapMeta(); return; }
+  clearTimeout(amtQuoteTimer);
+  amtQuoteTimer = setTimeout(async () => {
+    const run = ++amtQuoteRun;
+    const stamp = amtQuoteStamp();
+    try {
+      const q = await R.swapped.transfer.quote({ plan: sdk.plan, amount: sdk.amount });
+      if (run !== amtQuoteRun || stamp !== amtQuoteStamp()) return; // superseded
+      sdk.amtQuote = { quote: q, stamp };
+    } catch {
+      if (run !== amtQuoteRun) return;
+      sdk.amtQuote = null; // silent by design: the strip simply stays hidden
+    }
+    paintSwapMeta();
+  }, 600);
+}
+/** PO 2026-08-19: every shown merchant name reads Stake (the To:-rows are
+    CSS-painted the same way) — prose must not leak the raw session merchant. */
+function merchantShownName() { return 'Stake'; }
+function swapMetaHelp() {
+  const p = sdk.plan, t = sdk.token;
+  if (!p || !t) return '';
+  const dest = p.destination?.symbol || sdk.amtQuote?.quote?.amountOut?.symbol || 'the supported token';
+  const amt = R.swapped.formatTokenAmount({ balance: String(sdk.amount || '0'), token: t.symbol, firstNonZeroDecimal: true });
+  if (p.flow === 'bridge') {
+    const netFrom = R.swapped.getNetworkConfig(t.network)?.label || networkLabel(t.network);
+    const netTo = R.swapped.getNetworkConfig(p.destination?.network)?.label || networkLabel(p.destination?.network);
+    return merchantShownName() + ' does not currently support ' + t.symbol + ' (' + netFrom + '). '
+      + 'We’ll automatically swap your ' + amt + ' ' + t.symbol + ' to ' + dest + (netTo ? ' (' + netTo + ')' : '')
+      + ' using the best rate. The final amount may vary slightly due to pricing changes.';
+  }
+  return merchantShownName() + ' does not currently support ' + t.symbol + '. '
+    + 'We’ll automatically swap your ' + amt + ' ' + t.symbol + ' to ' + dest
+    + ' using the best rate. The final amount may vary slightly due to pricing changes.';
+}
+function paintSwapMeta() {
+  const el = $('#amt-swapmeta');
+  if (!el) return;
+  const p = sdk.plan;
+  const live = p && (p.flow === 'swap' || p.flow === 'bridge')
+    && sdk.amtQuote && sdk.amtQuote.stamp === amtQuoteStamp();
+  const help = $('#asm-help');
+  if (!live) {
+    el.hidden = true;
+    if (help) help.hidden = true;
+    return;
+  }
+  const q = sdk.amtQuote.quote;
+  const mins = Number(q?.estimatedTimeSeconds) > 0 ? Math.max(1, Math.ceil(q.estimatedTimeSeconds / 60)) : 0;
+  const eta = $('#asm-eta');
+  if (eta) eta.textContent = mins ? mins + 'mins' : '';
+  // fee speaks fiat when the quote does (swap feeUsd / bridge network_fee_usd);
+  // a token-denominated fee falls back to the breakdown's rendering
+  const fee = q?.networkFee;
+  let feeTxt = '';
+  if (fee && fee.symbol === 'USD') feeTxt = 'Fee $' + R.swapped.formatCurrencyAmount(fee.amount);
+  else if (q?.protocolFeeFiat) feeTxt = 'Fee $' + R.swapped.formatCurrencyAmount(q.protocolFeeFiat);
+  else if (fee) feeTxt = 'Fee ' + R.swapped.formatTokenAmount({ balance: String(fee.amount), token: fee.symbol, firstNonZeroDecimal: true }) + ' ' + (fee.symbol || '');
+  const feeEl = $('#asm-fee');
+  if (feeEl) feeEl.textContent = feeTxt;
+  const why = $('#asm-why');
+  if (why) why.textContent = p.flow === 'bridge' ? 'Why bridge?' : 'Why swap?';
+  // a missing segment takes its dot with it
+  const dots = $$('#asm-line .asm-dot');
+  if (dots[0]) dots[0].hidden = !(mins && feeTxt);
+  if (dots[1]) dots[1].hidden = !(mins || feeTxt);
+  if (help && !help.hidden) help.textContent = swapMetaHelp();
+  el.hidden = false;
+}
+
 function setSdkAmountFromUsd(usd) {
   const t = sdk.token;
   const rate = Number(t?.exchangeRate || 0);
@@ -4937,8 +5063,19 @@ function updateAmountSdk(forceMsg) {
   }
   const eqSym = $('#amt-sym');
   if (eqSym && t) eqSym.textContent = sdk.entry === 'crypto' ? 'USD' : t.symbol;
+  // The chip shows the selected token's BALANCE (SPEC-amount-chip) — never a
+  // conversion of the typed amount, so its figure is CONSTANT while typing.
+  // #amt-token-sym already names the token, so crypto mode carries the bare
+  // compact figure. No live rate in fiat mode → empty (v20.18 rule).
   const chip = $('#amt-fiat');
-  if (chip) chip.textContent = rated ? ('$' + (fiat || '0.00')) : '';
+  if (chip) {
+    const balFiat = rated && t
+      ? R.swapped.convertCryptoToFiat({ amount: String(t.displayBalance || 0), exchangeRate: Number(t.exchangeRate || 0), decimals: 2 })
+      : '';
+    chip.textContent = sdk.entry === 'crypto'
+      ? (t ? compactBal(t) : '')
+      : (balFiat ? '$' + balFiat : '');
+  }
   const banner = $('#amt-banner');
   if (banner) {
     const span = banner.querySelector('span');
@@ -4987,6 +5124,9 @@ function updateAmountSdk(forceMsg) {
   const cta = $('#amt-cta');
   const ready = n > 0 && !issue && !!sdk.plan && !planUnusable();
   cta.classList.toggle('disabled', !ready);
+  // swap/bridge meta strip follows every amount/plan repaint (debounced fetch,
+  // stamp-deduped — see scheduleAmtQuote)
+  scheduleAmtQuote();
 }
 
 /* ---------------- token drawer ---------------- */
@@ -5020,48 +5160,60 @@ function tokenList() {
 }
 
 function openTokensSdk() {
-  const list = tokenList();
   showSheet('#wl-tokens');
+  renderTokenRows();
+}
+
+/**
+ * The drawer's ONLY row painter (SPEC-token-rows) — shared by open, Refresh
+ * and rate enrichment so no path can paint a different row shape.
+ * Widget parity: the network reads from the badge on EVERY row (never chain
+ * text on the sym line); the right column is USD on top, compact amount below.
+ */
+function renderTokenRows() {
+  const list = tokenList();
   if (!list) return;
   // retire the static SOL/USDC fallback table once real balances exist
   const fallback = $('#wl-tokens .wl-table');
   if (fallback) fallback.hidden = true;
-  // the documented order (sortWalletTokens lives on the react subpath only, so
-  // the rule is ported): eligible first, balanceTooLow sinks, rated tokens
-  // before unrated ones, then fiat value descending
-  const rated = (x) => Number(x?.exchangeRate || 0) > 0 || fiatOf(x) > 0;
-  const rows = sdk.balances.slice().sort((a, b) =>
-    (Number(!!b.eligible) - Number(!!a.eligible))
-    || (Number(!a.balanceTooLow) - Number(!b.balanceTooLow))
-    || (Number(rated(b)) - Number(rated(a)))
-    || (fiatOf(b) - fiatOf(a)));
-  // The same symbol on several chains rendered as identical rows (PO shot 13:
-  // USDC ×3, USDT ×4, nothing naming the chain). The .nm subtitle is
-  // display:none in this skin and CSS is out of this lane, so duplicate
-  // symbols carry the chain ON the sym line — "USDC · Solana" — the widget's
-  // disambiguation with zero style changes. Unique symbols stay bare.
-  const seenSyms = new Set();
-  const dupeSyms = new Set();
-  for (const x of rows) {
-    const s = String(x.symbol).toUpperCase();
-    if (seenSyms.has(s)) dupeSyms.add(s); else seenSyms.add(s);
-  }
+  // The widget's comparator, ported from the spec: usable first; when BOTH
+  // rows lack a rate, raw balance decides; solvent before balanceTooLow;
+  // then USD descending — rate × balance, never the stale fiatValue snapshot.
+  const usdOf = (x) => Number(x?.exchangeRate || 0) * Number(x?.displayBalance || 0);
+  const rows = sdk.balances.slice().sort((a, b) => {
+    const ua = Number(!!sessionAccepts(a)), ub = Number(!!sessionAccepts(b));
+    if (ua !== ub) return ub - ua;
+    if (!(Number(a.exchangeRate) > 0) && !(Number(b.exchangeRate) > 0)) {
+      return Number(b.displayBalance || 0) - Number(a.displayBalance || 0);
+    }
+    if (!!a.balanceTooLow !== !!b.balanceTooLow) {
+      return Number(!!a.balanceTooLow) - Number(!!b.balanceTooLow);
+    }
+    return usdOf(b) - usdOf(a);
+  });
+  // Balances land RATE-LESS first and enrich in one wave: until any row has a
+  // rate the USD slot is "loading" (.rate-wait, styled by CSS); after the wave
+  // a still-rate-less row's slot is EMPTY — never $0.00. Derived per paint so
+  // wallet/account switches and Refresh need no reset bookkeeping.
+  const ratesLoading = !sdk.balances.some((x) => Number(x?.exchangeRate) > 0);
   list.innerHTML = rows.map((b) => {
     const usable = sessionAccepts(b);
     const why = usable ? '' : ineligibleCopy(b);
-    const chain = R.swapped.getNetworkConfig(b.network)?.label || networkLabel(b.network);
-    const symText = dupeSyms.has(String(b.symbol).toUpperCase())
-      ? b.symbol + ' · ' + chain : b.symbol;
+    // formatted.fiatValue is BARE ("48.62", no symbol) — the page adds the $
+    const fiatStr = b.formatted?.fiatValue
+      || (fiatOf(b) > 0 ? R.swapped.formatCurrencyAmount(fiatOf(b), { firstNonZeroDecimal: true }) : '');
+    const top = fiatStr ? '$' + esc(fiatStr)
+      : (ratesLoading ? '<span class="rate-wait"></span>' : '');
     return '<div class="tok-row' + (usable ? '' : ' disabled') + '" data-action="pick-token-sdk"'
       + ' data-key="' + esc(tokenKey(b)) + '"' + (usable ? '' : ' aria-disabled="true"') + '>'
       + '<div class="l"><span class="tok-ico">'
       // an empty src makes the browser re-request the PAGE — emit no img at all
       + (b.thumbnail || b.logo ? '<img class="coin" src="' + esc(b.thumbnail || b.logo) + '" alt="">' : '<span class="coin"></span>')
-      + (b.tokenAddress ? '<span class="tok-net" title="' + esc(b.network) + '">' + esc(netBadge(b.network)) + '</span>' : '')
+      + (b.network ? '<span class="tok-net" title="' + esc(b.network) + '">' + esc(netBadge(b.network)) + '</span>' : '')
       + '</span>'
-      + '<div><div class="sym">' + esc(symText) + '</div><div class="nm">' + esc(why || b.name || b.network) + '</div></div></div>'
-      + '<div class="r"><div class="vals"><span class="amt">' + esc(showBal(b)) + '</span>'
-      + '<span class="fiat">' + esc(showFiat(b)) + ' USD</span></div>'
+      + '<div><div class="sym">' + esc(b.symbol) + '</div><div class="nm">' + esc(why || b.name || b.network) + '</div></div></div>'
+      + '<div class="r"><div class="vals"><span class="amt">' + top + '</span>'
+      + '<span class="fiat">' + esc((compactBal(b) + ' ' + (b.symbol || '')).trim()) + '</span></div>'
       + '<span class="rchev">›</span></div></div>';
   }).join('') || '<div class="tok-empty">No balances on this wallet.</div>';
   list.dataset.sorted = '1';
@@ -6681,6 +6833,7 @@ function wireSdkEvents() {
     if (p?.walletId && sdk.connection?.walletId && p.walletId !== sdk.connection.walletId) return;
     if (!sdk.connection) return;
     sdk.plan = null; sdk.quote = null; sdk.validation = null;
+    invalidateAmtQuote();
     await loadSdkBalances();
     resolvePlan();
     demoToast('Network changed', 'Your wallet switched networks. The deposit was re-checked.', 5000);
@@ -6690,6 +6843,7 @@ function wireSdkEvents() {
     // must not tear down the one being used to pay.
     if (p?.walletId && sdk.connection?.walletId && p.walletId !== sdk.connection.walletId) return;
     sdk.connection = null; sdk.balances = []; sdk.token = null; sdk.plan = null; sdk.validation = null;
+    invalidateAmtQuote();
     setDisconnected();
     if (p?.reason === 'session_expired') demoToast('Wallet session expired', 'Reconnect your wallet to continue.', 6000);
     if (!$('#wl-picker').classList.contains('open')) home();
@@ -6699,6 +6853,7 @@ function wireSdkEvents() {
     if (p?.walletId && sdk.connection?.walletId && p.walletId !== sdk.connection.walletId) return;
     if (p?.accounts && sdk.connection) sdk.connection = { ...sdk.connection, accounts: p.accounts };
     sdk.plan = null; sdk.quote = null; sdk.validation = null;
+    invalidateAmtQuote();
     await loadSdkBalances();
     // Re-derive the CURRENT token's fresh row; only auto picks may be replaced.
     // Multichain wallets emit accountsChanged as extra namespaces land, and
@@ -6734,6 +6889,9 @@ function wireSdkEvents() {
     }
     paintMerchantBalances();
     paintTokenButton();
+    // repaint the drawer BEFORE the re-derive below can return early — and via
+    // renderTokenRows, never openTokensSdk (showSheet replays the transition)
+    if ($('#wl-tokens')?.classList.contains('open')) renderTokenRows();
     // A $ amount typed BEFORE the rates enriched converted to NOTHING
     // (setSdkAmountFromUsd bails without a rate) and stayed empty forever —
     // the input showed "$1" while sdk.amount was ''. Re-derive it from the
@@ -6744,7 +6902,6 @@ function wireSdkEvents() {
       if (typedUsd > 0) { setSdkAmountFromUsd(typedUsd); return; }
     }
     updateAmountSdk();
-    if ($('#wl-tokens')?.classList.contains('open')) openTokensSdk();
   });
   R.swapped.on('wallets:transferStatus', (ev) => sdkTransferStatus(ev));
   R.swapped.on('transaction:updated', () => { loadSdkBalances(); });
