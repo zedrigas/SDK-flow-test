@@ -362,13 +362,12 @@ body:not([data-connected="1"]) #wl-amount .wl-token-chip { opacity: 0.45; }
   display: flex; align-items: center; gap: 6px;
   background: rgba(0, 0, 0, 0.32); border-radius: 48px; padding: 6px;
   overflow-x: auto; scrollbar-width: none; margin: 0 16px 16px;
-  /* right fade signals the row scrolls (Figma clips "Settings" the same way) */
-  -webkit-mask-image: linear-gradient(90deg, #000 86%, transparent 100%);
-  mask-image: linear-gradient(90deg, #000 86%, transparent 100%);
+  /* no fade mask: it washed out "Settings" permanently (PO shot 01) — the
+     desktop strip fits all four tabs; mobile scrolls, cut tabs cue it */
 }
 .wl-tabs::-webkit-scrollbar { display: none; }
 .wl-tabs .tab {
-  flex: 0 0 auto; padding: 10px 20px; border-radius: 9999px;
+  flex: 0 0 auto; padding: 10px 14px; border-radius: 9999px;
   color: var(--wl-title); font-weight: 600; font-size: 16px; line-height: 24px; white-space: nowrap;
 }
 .wl-tabs .tab.sel { background: var(--wl-chip); color: #fff; }
@@ -2006,7 +2005,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.12</span>
+    <span class="db-ver">v20.13</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
