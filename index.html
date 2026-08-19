@@ -2002,7 +2002,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.5</span>
+    <span class="db-ver">v20.6</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -3487,6 +3487,9 @@ const ACTIONS = {
 
   async 'amount-continue'() {
     if (!sdk.plan || !(parseFloat(sdk.amount) > 0) || amountIssue()) return;
+    // widget rule (Figma 5050:106233): the first Continue on a below-min
+    // amount FILLS the minimum instead of blocking; the next press proceeds
+    if (snapUnderMin()) return;
     // The async validateAmount may still be in flight for the amount as
     // typed — Continue must not outrun it, or a below-minimum amount sails
     // through to the confirm screen and dies late with generic copy.
@@ -3496,6 +3499,7 @@ const ACTIONS = {
       await revalidateAmount();
       updateAmountSdk();
       if (amountIssue()) return;
+      if (snapUnderMin()) return; // validation may have just revealed the min
     }
     openSummarySdk();
   },
@@ -3689,10 +3693,12 @@ document.addEventListener('click', (e) => {
   if (!chip) return;
   const v = Number(chip.dataset.usd);
   $$('#wl-amount .wl-quick .chip').forEach((c) => c.classList.toggle('sel', c === chip));
+  // input FIRST, conversion second — the converter rewrites the input when
+  // the preset exceeds the spendable max (the snap must not be overwritten)
+  $('#amt-usd').value = '$' + v;
   setSdkAmountFromUsd(v);
-  // chips are USD presets in both entry modes — in token mode the input shows
-  // the converted token amount the preset buys
-  $('#amt-usd').value = sdk.entry === 'crypto' && parseFloat(sdk.amount) > 0 ? sdk.amount : '$' + v;
+  // in token mode the input shows the (possibly snapped) token amount
+  if (sdk.entry === 'crypto' && parseFloat(sdk.amount) > 0) $('#amt-usd').value = sdk.amount;
 });
 // Shared $-mask for every fiat field: the SDK sanitizer first (it maps a
 // decimal COMMA to a dot and strips leading zeros — the hand-rolled mask it
@@ -3714,7 +3720,10 @@ $('#amt-usd').addEventListener('input', () => {
   const el = $('#amt-usd');
   if (sdk.entry === 'crypto') {
     const t = sdk.token;
-    const raw = cryptoMask(el.value, Math.min(Number(t?.decimals) || 8, 8));
+    let raw = cryptoMask(el.value, Math.min(Number(t?.decimals) || 8, 8));
+    // widget rule: over-max SNAPS to the spendable balance in token entry too
+    const bal = Number(t?.displayBalance || 0);
+    if (bal > 0 && parseFloat(raw) > bal) raw = String(t.displayBalance);
     el.value = raw || '0';
     // the typed value IS the token amount — no conversion loss on the input
     sdk.amount = parseFloat(raw) > 0 ? raw : '';
@@ -4687,6 +4696,32 @@ function planUnusable() {
  * cached on sdk.validation; this only adds the balance check, which
  * validateAmount deliberately does not perform.
  */
+/** Below the plan's minimum? Not an ERROR — Continue snaps the field to the
+    minimum (hosted-widget rule; Figma 5050:106233 has no error banner). */
+function amountUnderMin() {
+  const n = parseFloat(sdk.amount);
+  const m = Number(sdk.min?.crypto || 0);
+  return n > 0 && m > 0 && n < m;
+}
+/** Fill the minimum into the amount + field. True when a snap happened. */
+function snapUnderMin() {
+  if (!amountUnderMin()) return false;
+  sdk.amount = String(sdk.min.crypto);
+  const input = $('#amt-usd');
+  if (input) {
+    // the $ field needs an ENTERABLE dollar figure — min.fiat when the plan
+    // carries one, else ceil from crypto so the shown minimum really clears
+    input.value = sdk.entry === 'crypto' ? sdk.amount
+      : '$' + (Number(sdk.min?.fiat || 0) > 0 ? sdk.min.fiat
+        : (R.swapped.convertCryptoToFiatCeil({
+          amount: sdk.amount, exchangeRate: Number(sdk.token?.exchangeRate || 0), decimals: 2,
+        }) || '0'));
+  }
+  updateAmountSdk();
+  revalidateAmount();
+  return true;
+}
+
 function amountIssue() {
   const t = sdk.token;
   if (!t) return 'No token selected.';
@@ -4695,8 +4730,7 @@ function amountIssue() {
   const n = parseFloat(sdk.amount);
   if (!(n > 0)) return null; // just empty, not an error
   if (n > Number(t.displayBalance || 0)) {
-    // name the REAL max (PO shot 15: "$4" over a ~$1 holding got a bare
-    // refusal) — the truthful ceiling is the same one Max fills
+    // final guard only — typing and chips SNAP to max before this can fire
     const rate = Number(t.exchangeRate || 0);
     const maxFiat = rate > 0
       ? R.swapped.convertCryptoToFiat({ amount: String(t.displayBalance), exchangeRate: rate, decimals: 2 })
@@ -4704,6 +4738,9 @@ function amountIssue() {
     return 'More than your ' + t.symbol + ' balance.'
       + (maxFiat ? ' You can send up to $' + maxFiat + ' — Max fills it.' : '');
   }
+  // below-min is the SNAP case, never a blocking issue — Continue stays live
+  // and its first press fills the minimum
+  if (amountUnderMin()) return null;
   const v = sdk.validation;
   if (v && v.amount === sdk.amount && v.result && v.result.ok === false) return v.result.message;
   return null;
@@ -4736,15 +4773,19 @@ function setSdkAmountFromUsd(usd) {
       maxDecimals: Math.min(Number(t.decimals) || 8, 8),
     })
     : '';
-  // The truncation trap (PO shot 14): every fiat figure on screen is cut to
-  // cents, so a $0.996 BONK holding reads "$0.99" — and typing the "$1" the
-  // user believes they own converts to ~0.4% MORE BONK than is spendable,
-  // tripping a false "More than your balance". A typed dollar within a cent
-  // of the holding's TRUE fiat value means "all of it" — clamp to the exact
-  // spendable amount, identical to Max. A real overshoot keeps the error.
+  // Hosted-widget rule (Figma 5050:106233): an entry over the spendable max
+  // SNAPS to the max — the field, the chip and Max always agree, and Continue
+  // can never sit enabled over an amount the wallet cannot pay. This also
+  // kills the truncation trap (a $0.996 holding reads "$0.99"; typing "$1"
+  // used to convert to more BONK than is spendable and hard-error).
   const bal = Number(t.displayBalance || 0);
-  if (bal > 0 && parseFloat(sdk.amount) > bal && usd <= bal * rate + 0.011) {
+  if (bal > 0 && parseFloat(sdk.amount) > bal) {
     sdk.amount = String(t.displayBalance);
+    if (sdk.entry === 'fiat') {
+      const maxFiat = R.swapped.convertCryptoToFiat({ amount: sdk.amount, exchangeRate: rate, decimals: 2 });
+      const input = $('#amt-usd');
+      if (input) input.value = '$' + (maxFiat || '0');
+    }
   }
   updateAmountSdk();
   revalidateAmount();
@@ -4805,7 +4846,7 @@ function updateAmountSdk(forceMsg) {
       banner.hidden = false;
       banner.classList.add('info');
       if (span) span.textContent = noRate;
-    } else if (!issue && !forceMsg && !(n > 0) && min > 0) {
+    } else if (!issue && !forceMsg && (!(n > 0) || amountUnderMin()) && min > 0) {
       // proactive minimum BEFORE the user types a bad number — informational
       // styling, not the error red. The input is a DOLLAR field, so the
       // minimum must speak dollars too (min.fiat, else ceiled from crypto —
