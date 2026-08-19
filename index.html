@@ -2006,7 +2006,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.11</span>
+    <span class="db-ver">v20.12</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -5091,6 +5091,19 @@ function networkLabel(n) {
   n = String(n || '');
   return n ? n[0].toUpperCase() + n.slice(1) : '';
 }
+// The Network row wears the CHAIN's mark, never the token's (PO shot 07:
+// USDT-on-Ethereum wore a USDT coin; the widget shows the chain logo). The
+// SDK has no network-icon field, so the mark is the chain's NATIVE asset logo
+// from the live balances (native rows exist even at zero balance). No native
+// row → empty well: blank beats the wrong token's mark.
+function paintNetworkWell(well, network) {
+  if (!well) return;
+  const native = (sdk.balances || []).find((b) =>
+    b.network === network && !b.tokenAddress && (b.thumbnail || b.logo));
+  const src = native ? (native.thumbnail || native.logo) : '';
+  well.classList.remove('sol-coin');
+  well.innerHTML = src ? '<img class="a" src="' + esc(src) + '" alt="">' : '';
+}
 function paintSummary() {
   const t = sdk.token, q = sdk.quote, plan = sdk.plan;
   const set = (sel, v) => { const el = $(sel); if (el) el.textContent = v; };
@@ -5108,7 +5121,7 @@ function paintSummary() {
   // token-true marks: the frame's SOL layers stay ONLY while SOL is the token
   paintCoinWell($('#sum-amount-coin'), t);
   paintCoinWell($('#bd-amount-coin'), t);
-  paintCoinWell($('#bd-network-coin'), t);
+  paintNetworkWell($('#bd-network-coin'), t?.network);
   set('#bd-network-name', networkLabel(t?.network));
   // web3 wallet flows carry no withdrawal fee — an empty row reading '—' is
   // noise, not information (PO bug 2026-08-18). The row returns with a quote.
