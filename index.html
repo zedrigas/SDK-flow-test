@@ -2119,7 +2119,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.28</span>
+    <span class="db-ver">v20.29</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -6433,7 +6433,7 @@ function wireExchangePayEvents() {
 /* ================= Coinbase (OAuth withdraw) ================= */
 
 async function openCoinbase(method) {
-  sdk.cb = { method, balances: [], networks: [], token: null, network: null, withdrawal: null, fundingTokens: null, selection: null, fiat: 0 };
+  sdk.cb = { method, balances: [], networks: [], token: null, network: null, withdrawal: null, fundingTokens: null, selection: null, fundingError: null, fiat: 0 };
   showSheet('#wl-cb');
   $('#cb-title').textContent = 'Log in with Coinbase';
   const badge = $('#cb-badge-ico');
@@ -6537,14 +6537,18 @@ async function cbLoadBalances() {
   try {
     const balances = await R.swapped.coinbase.balances({ forceRefetch: true });
     sdk.cb.balances = balances;
-    const eligible = balances.filter((b) => b.eligible);
-    if (!eligible.length) {
+    // usable = directly eligible OR swap-fundable (PO D7): the no-balance
+    // sheet fires only when NOTHING can pay even via the funding-token swap
+    const usable = balances.filter(cbUsable);
+    if (!usable.length) {
       // 3275:56458 — nothing on this Coinbase account can pay this session
       showNoBalance(balances.map((b) => ({ label: b.currency, sub: cbIneligible(b) })),
         'Your Coinbase account has no balance this session can accept. Use another wallet or exchange to continue.');
       return;
     }
-    cbSelectToken(eligible[0].currency, { paintOnly: false });
+    // least surprise: prefer a token the user holds directly
+    const pick = usable.find((b) => b.eligible) || usable[0];
+    cbSelectToken(pick.currency, { paintOnly: false });
   } catch (e) {
     // a dead OAuth session must land the user on Connect, not on a toast over
     // a step that can no longer work (the event path already does this)
@@ -6566,17 +6570,31 @@ function cbRenderPick() {
   const list = $('#cb-balances');
   if (!list) return;
   list.innerHTML = (sdk.cb.balances || []).map((b) => (
-    '<div class="tok-row' + (b.eligible ? '' : ' disabled') + '" data-action="cb-pick-token" data-key="' + esc(b.currency) + '">'
+    // usable = eligible OR swap-fundable (PO D7); a swap-funded row shows its
+    // AGGREGATED figures — that is what it can actually pay
+    '<div class="tok-row' + (cbUsable(b) ? '' : ' disabled') + '" data-action="cb-pick-token" data-key="' + esc(b.currency) + '">'
     + '<div class="l"><span class="tok-ico">' + cbCoin(b.currency) + '</span>'
     + '<div class="names"><div class="sym">' + esc(b.currency) + '</div>'
-    + '<div class="minline">' + esc(b.eligible ? b.name : (cbIneligible(b) || b.name)) + '</div></div></div>'
+    + '<div class="minline">' + esc(cbUsable(b) ? b.name : (cbIneligible(b) || b.name)) + '</div></div></div>'
     + '<div class="r"><div class="vals"><span class="fiat">$' + esc(b.formatted?.aggregatedValueFiat || b.formatted?.valueFiat || '0') + '</span>'
-    + '<span class="crypto">' + esc(b.formatted?.balance || String(b.balance)) + ' ' + esc(b.currency) + '</span></div>'
+    + '<span class="crypto">' + esc((b.eligible ? b.formatted?.balance : b.formatted?.aggregatedBalance) || b.formatted?.balance || String(b.balance)) + ' ' + esc(b.currency) + '</span></div>'
     + '<span class="rchev">›</span></div></div>'
   )).join('') || '<div class="tok-empty">No balances on this Coinbase account.</div>';
   assignTabIndexes(list);
 }
 
+/** Directly eligible OR swap-fundable (PO D7): getBalances aggregates
+    swappable funding amounts into aggregatedBalance (dist doc — private
+    getAggregatedBalances), so a destination with zero OWN balance can still
+    be paid by swapping other holdings. 'unsupported' can never be a
+    destination — the session does not accept it. */
+function cbUsable(b) {
+  if (!b) return false;
+  if (b.eligible) return true;
+  if (b.ineligibleReason === 'unsupported' || b.supported === false) return false;
+  const agg = Number(b.aggregatedBalance || 0);
+  return agg > 0 && agg >= Number(b.minAmount || 0);
+}
 function cbIneligible(b) {
   return {
     unsupported: 'Not accepted here', zero_balance: 'No balance',
@@ -6587,7 +6605,7 @@ function cbIneligible(b) {
 /** Token chosen (or defaulted): funding tokens, networks, then the amount card. */
 async function cbSelectToken(currency) {
   const b = sdk.cb.balances.find((x) => x.currency === currency);
-  if (!b || !b.eligible) return;
+  if (!b || !cbUsable(b)) return;
   sdk.cb.token = b;
   // Funding tokens let other Coinbase balances fund this withdrawal by swap.
   try {
@@ -6596,7 +6614,23 @@ async function cbSelectToken(currency) {
     sdk.cb.selection = R.swapped.coinbase.aggregatedBalance({
       balances: raw, currency: b.currency, fundingTokens: sdk.cb.fundingTokens,
     });
-  } catch { sdk.cb.fundingTokens = null; sdk.cb.selection = null; }
+    sdk.cb.fundingError = null;
+  } catch (e) {
+    sdk.cb.fundingTokens = null; sdk.cb.selection = null;
+    // never a silent null (PO D7): the ?debug __NOVA_SDK seam carries the why
+    sdk.cb.fundingError = String(e?.message || e || 'funding selection failed').slice(0, 200);
+    if (!b.eligible) {
+      // a swap-only pick without a funding selection would go out as a
+      // doomed no-swap withdrawal — stay on the pick list and say so
+      demoToast('Balance swap unavailable',
+        'Coinbase could not prepare a swap from your other balances into ' + b.currency
+        + '. Try again, or pick a token you hold directly.', 6000);
+      sdk.cb.token = null;
+      cbRenderPick();
+      cbStep('cb-pick');
+      return;
+    }
+  }
   cbStep('cb-amount');
   cbPaintChip();
   const input = $('#cb-amt');
