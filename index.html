@@ -240,19 +240,21 @@ body:not([data-connected="1"]) .post-c { display: none !important; }
 
 /* ---- white-label bottom sheets (Figma modals adapted to full-width sheets) ---- */
 .wl-backdrop {
-  position: fixed; inset: 0; z-index: 60; display: none;
+  position: fixed; inset: 0; z-index: 60; opacity: 0; visibility: hidden; pointer-events: none;
   background: rgba(0, 0, 0, 0.32);
   -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  /* the widget's drawer-backdrop motion (connect-FE --transition-drawer-backdrop) */
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.wl-backdrop.show { display: block; animation: fadeIn 0.25s ease; }
-@keyframes fadeIn { from { opacity: 0; } }
+.wl-backdrop.show { opacity: 1; visibility: visible; pointer-events: auto; }
 .wl-sheet {
   position: fixed; z-index: 61; left: 0; right: 0; bottom: 0;
   max-width: var(--sheet-w); margin: 0 auto;
   background: var(--wl-modal);
   border-radius: 8px 8px 0 0;
   transform: translateY(105%);
-  transition: transform 0.35s var(--ios-ease);
+  /* the widget's drawer motion (connect-FE --transition-drawer) — PO fix C */
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex; flex-direction: column;
   max-height: 88svh;
   font-family: var(--font-wl);
@@ -566,7 +568,8 @@ img.coin { border-radius: 50%; }
     width: 500px; max-width: 500px; max-height: min(88dvh, 870px); /* Figma deposit modal: 870 tall on a 1004 page (6389:111416) */
     border-radius: 8px;
     transform: translate(-50%, -47%) scale(0.98); opacity: 0;
-    transition: transform 0.25s var(--ios-ease), opacity 0.25s ease;
+    /* same widget curve as the mobile drawer (PO fix C) */
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
   }
@@ -902,8 +905,10 @@ img.coin { border-radius: 50%; }
 /* overlay stacking (summary/breakdown/waiting above the dimmed amount screen) */
 .wl-sheet.under-overlay { pointer-events: none !important; }
 .wl-sheet.under-overlay::after {
-  content: ''; position: absolute; inset: 0; border-radius: inherit;
-  background: rgba(0, 0, 0, 0.5); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+  content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 5;
+  /* FULL dim (PO fix C): nothing on the amount sheet may read through the
+     confirm/waiting card — near-opaque navy, never a translucent scrim */
+  background: rgba(16, 28, 35, 0.96); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
 }
 .wl-sheet.as-overlay { z-index: 62; }
 /* MOBILE overlay anchoring is deliberately empty of math — do not "fix" it.
@@ -1027,10 +1032,13 @@ img.coin { border-radius: 50%; }
    (3213:39291, radius 8) — machine-extracted; checks/figma-spec.mjs guards it */
 #wl-depositing[data-skin="wg"] .wl-spinner { width: 60px; height: 60px; }
 #wl-depositing[data-skin="wg"] .wl-spinner .arc { border-top-color: #fff; border-right-color: #fff; }
-/* under reduced motion the spin STOPS (an infinite 1ms loop is still a random
-   pose per frame — the parity capture needs one deterministic pose) */
+/* The waiting ring is the ONLY progress signal on this skin (the status line
+   is display:none), so it keeps spinning even under OS Reduce Motion (PO fix
+   E). The parity capture freezes it with its own injected style, not this
+   media. The login ring still stops (capture determinism, no PO order). */
 @media (prefers-reduced-motion: reduce) {
-  .wl-spinner .arc, .login-ring .arc { animation: none !important; }
+  .wl-spinner .arc { animation: spin 1s linear infinite !important; }
+  .login-ring .arc { animation: none !important; }
 }
 #wl-depositing[data-skin="wg"] .wl-spinner .badge { width: 28px; height: 28px; border-radius: 8px; }
 /* Figma spinner shows only the animated arc, no full ring track underneath */
@@ -1247,13 +1255,13 @@ img.coin { border-radius: 50%; }
 
 
 /* v14 parity round-3 hand fixes */
-/* login-failed banner tucks behind the CTA (Figma 89111 pop-up message) */
+/* login banner sits fully ABOVE the CTA (PO fix G) — the old Figma-89111 tuck
+   pulled the CTA -40px up over the banner and cost real clicks in the field */
 #wl-login[data-skin="wg"] .login-banner {
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  border-radius: 12px 12px 0 0; padding: 6px 12px 22px; width: 100%;
+  border-radius: 12px; padding: 6px 12px; width: 100%;
 }
 #wl-login[data-skin="wg"] .login-banner svg { width: 12px; height: 12px; flex: 0 0 12px; }
-#wl-login[data-skin="wg"] #login-banner:not([hidden]) ~ #login-cta { margin-top: -40px; }
 /* status block anchored per frame 89125/89129 (block starts ~y165 of 514) */
 .wl-sheet[data-skin="wg"] .wl-status { justify-content: flex-start; padding-top: 81px; }
 /* browser illustration at its native frame size */
@@ -1283,10 +1291,8 @@ img.coin { border-radius: 50%; }
 /* v14 parity round-7 hand fixes */
 /* Figma 89019: the QR group sits high under the tabs (fixed offset, not centered) */
 #wl-login[data-skin="wg"] .login-qr:not([hidden]) { margin-top: 46px; }
-/* Figma 89111: banner is a thin single line */
-/* frame 89111: thin single-line text, bar tucked 16px behind the CTA — the
-   24px bottom padding is the tucked part; flex gap 24 + margin -40 = -16 overlap */
-#wl-login[data-skin="wg"] #login-banner:not([hidden]) { padding: 6px 10px 24px; font-size: 11px; line-height: 16px; }
+/* Figma 89111: banner is a thin single line (tuck removed — PO fix G) */
+#wl-login[data-skin="wg"] #login-banner:not([hidden]) { padding: 6px 10px; font-size: 11px; line-height: 16px; }
 
 /* login-browser: frame 89098 anchors the illustration 32px under the tabs
    (bottom-heavy free space), overriding the twin auto-margin centering */
@@ -1594,6 +1600,66 @@ img.coin { border-radius: 50%; }
 #asm-why { text-decoration: underline; cursor: pointer; }
 #asm-why:hover, #asm-why:focus-visible { color: var(--wg-body); }
 #asm-help { margin-top: 8px; padding: 0 4px; text-align: left; color: var(--wg-helper); font: 500 12px/16px var(--font-wg); }
+
+/* ===== PO pass 2026-08-20 (fix list A–H, v20.22) ===== */
+
+/* (A2) the drawer scrollport started 7px above the back circle's bottom, so
+   scrolled rows slid under the button (PO shot: ETH under back). Extra header
+   depth moves the clip line below the button. */
+#wl-tokens[data-skin="wg"] .wl-header { padding-bottom: 10px; }
+/* (A3) the native scrollbar reads as a white defect on the navy sheets (the
+   drawer AND the picker showed it); the sheet's own max-height already
+   signals more content */
+.wl-sheet[data-skin="wg"] .wl-body { scrollbar-width: none; }
+.wl-sheet[data-skin="wg"] .wl-body::-webkit-scrollbar { display: none; width: 0; }
+
+/* (B) brand fill keyed off the .ph/.tr class the JS toggles — the build
+   inlines bundled marks as data URIs, so img[src*="phantom"] can never match
+   a static. CDN-src rules above still cover the other wallets' dyn imgs. */
+:is(.wl-connected .wlogo, .wl-spinner .badge, #wl-login[data-skin="wg"] .ho-badge,
+    .sum-col .who .lg, #wl-picker[data-skin="wg"] .wl-tile .logo).ph { background: var(--ph-purple); }
+:is(.wl-connected .wlogo, .wl-spinner .badge, .sum-col .who .lg).tr { background: #fff; }
+#wl-login[data-skin="wg"] .login-browser-badge { background: var(--ph-purple); }
+/* the bundled ghost is a bare glyph — inset it on the tile's purple square
+   (CDN tile icons stay full-bleed via the rule at the picker block) */
+#wl-picker[data-skin="wg"] .wl-tile .logo.ph img { inset: 18%; width: 64%; height: 64%; }
+
+/* (F) swap/bridge Receive card — the widget's continuation card under the
+   Deposit card, arrow medallion on the seam (shots 6–8, our navy skin) */
+#amt-receive {
+  position: relative; margin-top: 8px; width: 100%;
+  background: var(--wg-bg); border: 0.75px solid var(--wg-border);
+  border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.amt-swap-arrow {
+  position: absolute; top: 0; left: 50%; transform: translate(-50%, -60%);
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--wg-panel); border: 1px solid var(--wg-border);
+  display: flex; align-items: center; justify-content: center; color: var(--wg-helper);
+}
+#rcv-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+#rcv-amt { color: var(--wg-body); font: 500 24px/28px var(--font-wg); overflow-wrap: anywhere; min-width: 0; }
+#rcv-token {
+  display: flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  background: var(--wg-chip); border-radius: 8px; padding: 6px 8px;
+  color: var(--wg-helper); font: 500 14px/16px var(--font-wg);
+}
+#rcv-token .tok-ico { position: relative; display: inline-block; width: 18px; height: 18px; flex: 0 0 18px; }
+#rcv-token .coin { width: 18px; height: 18px; }
+#rcv-token .coin.nb-letter { width: 18px; height: 18px; font: 700 9px/1 var(--font-wg); }
+#rcv-token .tok-net {
+  position: absolute; right: -3px; bottom: -2px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--wg-bg); border: 1px solid var(--wg-chip);
+  color: var(--wg-helper); font: 700 6px/9px var(--font-wg);
+  text-align: center; box-sizing: border-box; overflow: hidden;
+}
+
+/* (F) priced-failed state on the strip: plain helper prose + an underlined
+   Retry — an explanation with a way out, not error chrome */
+#asm-err { margin-top: 6px; color: var(--wg-helper); font: 500 12px/16px var(--font-wg); text-align: center; }
+#asm-retry { color: var(--wg-body); text-decoration: underline; cursor: pointer; }
+#asm-retry:hover, #asm-retry:focus-visible { color: #fff; }
 
 /* ---- merchant shell (src/merchant.css) — emitted last so merchant rules win ties ---- */
 /* ================= MERCHANT APP (white-label, Stake-style 1:1) ================= */
@@ -2033,7 +2099,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.21</span>
+    <span class="db-ver">v20.22</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -2759,6 +2825,8 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
         </div>
       </div>
       <div class="sum-foot">
+        <!-- the glyph IS the frame's exclamation-in-circle (6411:88900, verified on
+             the zoomed reference PNG) — grok judges misread it at 12px; do not swap it -->
         <div class="sum-banner" id="sum-banner" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span>Transaction was cancelled</span></div>
         <a class="wl-cta" id="sum-cta" rel="noopener">Confirm transaction</a>
       </div>
