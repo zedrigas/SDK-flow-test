@@ -870,23 +870,31 @@ img.coin { border-radius: 50%; }
 /* SDK artwork missing: an empty well still renders a round disc, never nothing (PO #4) */
 #wl-tokens[data-skin="wg"] .tok-ico .coin:empty { background: var(--wg-border); }
 #wl-tokens[data-skin="wg"] .tok-row .l { display: flex; align-items: center; gap: 8px; }
-#wl-tokens[data-skin="wg"] .tok-row .coin { width: 30px; height: 30px; }
+#wl-tokens[data-skin="wg"] .tok-row .coin { width: 28px; height: 28px; }
 #wl-tokens[data-skin="wg"] .tok-row .sym { color: var(--wg-body); font: 500 14px/18px var(--font-wg); }
 #wl-tokens[data-skin="wg"] .tok-row .nm { display: none; }
+/* a disabled row must SAY why (SPEC-token-rows) — the reason paints only there */
+#wl-tokens[data-skin="wg"] .tok-row.disabled .nm { display: block; color: var(--wg-helper); font: 500 12px/16px var(--font-wg); }
 #wl-tokens[data-skin="wg"] .tok-row .r { display: flex; flex-direction: row; align-items: center; gap: 10px; }
 #wl-tokens[data-skin="wg"] .tok-row .vals { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-#wl-tokens[data-skin="wg"] .tok-row .amt { color: var(--wg-body); font: 500 14px/18px var(--font-wg); }
+/* USD value is the row's lead figure — bold per the widget (unpinned by spec) */
+#wl-tokens[data-skin="wg"] .tok-row .amt { color: var(--wg-body); font: 600 14px/18px var(--font-wg); }
 #wl-tokens[data-skin="wg"] .tok-row .fiat { color: var(--wg-helper); font: 500 12px/16px var(--font-wg); }
+/* the rows render into the runtime .tok-list — the old gap sat on the hidden
+   .wl-table fallback, so live rows stacked flush */
+#wl-tokens[data-skin="wg"] .tok-list { display: flex; flex-direction: column; gap: 4px; }
+/* rate still loading: a quiet skeleton bar in the USD slot (never a fake $0) */
+#wl-tokens[data-skin="wg"] .rate-wait { display: inline-block; width: 36px; height: 10px; border-radius: 5px; background: var(--wg-border); opacity: 0.55; }
 /* Figma 88934: each token icon carries a small NETWORK badge bottom-right.
    With real multi-chain balances (USDC exists on 4 networks on this session)
    it is load-bearing information, not decoration — it says which chain the
-   balance actually lives on. */
-#wl-tokens[data-skin="wg"] .tok-ico { position: relative; display: inline-block; width: 30px; height: 30px; flex: 0 0 30px; }
+   balance actually lives on. ~15px on the 28px coin (PO P2). */
+#wl-tokens[data-skin="wg"] .tok-ico { position: relative; display: inline-block; width: 28px; height: 28px; flex: 0 0 28px; }
 #wl-tokens[data-skin="wg"] .tok-net {
-  position: absolute; right: -1px; bottom: -1px;
-  width: 11px; height: 11px; border-radius: 50%;
+  position: absolute; right: -2px; bottom: 0;
+  width: 15px; height: 15px; border-radius: 50%;
   background: var(--wg-bg); border: 1px solid var(--wg-chip);
-  color: var(--wg-helper); font: 700 6px/9px var(--font-wg);
+  color: var(--wg-helper); font: 700 8px/13px var(--font-wg);
   text-align: center; box-sizing: border-box; overflow: hidden;
 }
 #wl-tokens[data-skin="wg"] .tok-row .rchev { width: 16px; height: 16px; color: var(--wg-body); }
@@ -1565,8 +1573,9 @@ img.coin { border-radius: 50%; }
 #wl-details .kv:has(#det-price) { display: none; }
 #wl-details .kv:has(#det-slot) { display: none; }
 #cb-2fa-note { display: none; }
-/* a network letter-badge on an artwork-less disc reads as a broken glyph */
-.tok-ico:has(.coin:empty) .tok-net { display: none; }
+/* (removed 2026-08-19, PO P2) the :has(.coin:empty) badge suppressor matched
+   EVERY row — <img> is a void element, always :empty — so no badge ever
+   painted. The widget wears the badge on every row, letter discs included. */
 
 /* PO 2026-08-19: the To:-name ALWAYS reads Stake, whatever merchantName the
    session carries — painted-text swap (same idiom as the Breakdown title);
@@ -1575,6 +1584,16 @@ img.coin { border-radius: 50%; }
 #sum-to-name::after, #xpay-to-name::after, #cbc-to-name::after {
   content: "Stake"; font: 500 14px/18px var(--font-wg);
 }
+
+/* PO 2026-08-19 P5: the amount screen's swap/bridge meta strip (SPEC-swap-meta)
+   — an EXPLANATION in helper grey, never error/warning chrome (same idea as
+   .amt-banner.info). Wraps on small screens without pushing the CTA. */
+#amt-swapmeta { margin-top: 10px; color: var(--wg-helper); font: 500 12px/16px var(--font-wg); text-align: center; }
+#asm-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 6px; }
+#asm-line .asm-dot { opacity: 0.7; }
+#asm-why { text-decoration: underline; cursor: pointer; }
+#asm-why:hover, #asm-why:focus-visible { color: var(--wg-body); }
+#asm-help { margin-top: 8px; padding: 0 4px; text-align: left; color: var(--wg-helper); font: 500 12px/16px var(--font-wg); }
 
 /* ---- merchant shell (src/merchant.css) — emitted last so merchant rules win ties ---- */
 /* ================= MERCHANT APP (white-label, Stake-style 1:1) ================= */
@@ -2014,7 +2033,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.19</span>
+    <span class="db-ver">v20.20</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -2497,7 +2516,6 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
       <div class="tok-head"><span class="tok-label">Tokens</span><span class="tok-refresh" data-action="tokens-refresh"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Refresh</span></div>
       <!-- rows render from the live SDK balances (openTokensSdk) -->
       <div class="wl-table" hidden>
-      </div>
       </div>
     </div>
   </div>
