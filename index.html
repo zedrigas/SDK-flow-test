@@ -243,8 +243,10 @@ body:not([data-connected="1"]) .post-c { display: none !important; }
   position: fixed; inset: 0; z-index: 60; opacity: 0; visibility: hidden; pointer-events: none;
   background: rgba(0, 0, 0, 0.32);
   -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
-  /* the widget's drawer-backdrop motion (connect-FE --transition-drawer-backdrop) */
-  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* the widget's backdrop rides the same spring as its drawer */
+  will-change: opacity;
+  transition: opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.4s linear(0, 0.0902, 0.2642, 0.4422, 0.594, 0.7127, 0.8009, 0.8641, 0.9084, 0.9596 62.5%, 0.9827 75%, 0.9927 87.5%, 1), visibility 0.4s linear(0, 1);
 }
 .wl-backdrop.show { opacity: 1; visibility: visible; pointer-events: auto; }
 .wl-sheet {
@@ -253,8 +255,14 @@ body:not([data-connected="1"]) .post-c { display: none !important; }
   background: var(--wl-modal);
   border-radius: 8px 8px 0 0;
   transform: translateY(105%);
-  /* the widget's drawer motion (connect-FE --transition-drawer) — PO fix C */
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* The widget's LIVE drawer motion is a framer-motion spring (stiffness 400,
+     damping 40 → critically damped, no bounce). The linear() curve below IS
+     that spring sampled; older engines keep the cubic-bezier fallback.
+     will-change keeps the sheet on its own layer — mid-slide rasterization
+     was a twitch source (PO report 2026-08-20). */
+  will-change: transform;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.4s linear(0, 0.0902, 0.2642, 0.4422, 0.594, 0.7127, 0.8009, 0.8641, 0.9084, 0.9596 62.5%, 0.9827 75%, 0.9927 87.5%, 1);
   display: flex; flex-direction: column;
   max-height: 88svh;
   font-family: var(--font-wl);
@@ -568,8 +576,9 @@ img.coin { border-radius: 50%; }
     width: 500px; max-width: 500px; max-height: min(88dvh, 870px); /* Figma deposit modal: 870 tall on a 1004 page (6389:111416) */
     border-radius: 8px;
     transform: translate(-50%, -47%) scale(0.98); opacity: 0;
-    /* same widget curve as the mobile drawer (PO fix C) */
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* same spring as the mobile drawer (see the .wl-sheet base comment) */
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.4s linear(0, 0.0902, 0.2642, 0.4422, 0.594, 0.7127, 0.8009, 0.8641, 0.9084, 0.9596 62.5%, 0.9827 75%, 0.9927 87.5%, 1), opacity 0.4s linear(0, 0.0902, 0.2642, 0.4422, 0.594, 0.7127, 0.8009, 0.8641, 0.9084, 0.9596 62.5%, 0.9827 75%, 0.9927 87.5%, 1);
     pointer-events: none;
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
   }
@@ -907,8 +916,10 @@ img.coin { border-radius: 50%; }
 .wl-sheet.under-overlay::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 5;
   /* FULL dim (PO fix C): nothing on the amount sheet may read through the
-     confirm/waiting card — near-opaque navy, never a translucent scrim */
-  background: rgba(16, 28, 35, 0.96); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+     confirm/waiting card — near-opaque navy, never a translucent scrim.
+     NO backdrop-filter here: at 0.96 alpha a blur is invisible but its
+     compositing cost is a real flicker source (PO twitch report). */
+  background: rgba(16, 28, 35, 0.96);
 }
 .wl-sheet.as-overlay { z-index: 62; }
 /* MOBILE overlay anchoring is deliberately empty of math — do not "fix" it.
@@ -1638,7 +1649,10 @@ img.coin { border-radius: 50%; }
   display: flex; align-items: center; justify-content: center; color: var(--wg-helper);
 }
 #rcv-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
-#rcv-amt { color: var(--wg-body); font: 500 24px/28px var(--font-wg); overflow-wrap: anywhere; min-width: 0; }
+#rcv-amt { color: var(--wg-body); font: 500 24px/28px var(--font-wg); overflow-wrap: anywhere; min-width: 0; transition: opacity 0.15s ease; }
+/* a reprice is in flight for a NEW amount: the shown figure is stale — dim it
+   in place instead of unmounting the card (mount churn read as twitching) */
+#amt-receive.stale #rcv-amt { opacity: 0.45; }
 #rcv-token {
   display: flex; align-items: center; gap: 6px; flex: 0 0 auto;
   background: var(--wg-chip); border-radius: 8px; padding: 6px 8px;
@@ -2099,7 +2113,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.22</span>
+    <span class="db-ver">v20.23</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -4179,9 +4193,14 @@ async function renderPicker() {
   for (let i = 0; i < list.length; i += 2) {
     html += '<div class="row">' + tile(list[i]) + (list[i + 1] ? tile(list[i + 1]) : '') + '</div>';
   }
+  // identical HTML → skip the rewrite: re-creating the CDN <img> tiles makes
+  // the whole grid blink on every reopen (PO twitch report 2026-08-20)
+  if (html === pickerHtmlCache) return;
+  pickerHtmlCache = html;
   grid.innerHTML = html;
   assignTabIndexes();
 }
+let pickerHtmlCache = '';
 
 /* ==================== the REAL deposit journey (SDK-driven) ====================
    Our screens, Swapped's data. Every value below comes from the live session —
@@ -5043,6 +5062,9 @@ function scheduleAmtQuote() {
   // updateAmountSdk runs on many no-change paths (enrichment, validation
   // landings, flip) — an identical stamp is already priced, never re-fetch
   if (sdk.amtQuote && sdk.amtQuote.stamp === amtQuoteStamp()) { paintSwapMeta(); return; }
+  // a reprice is pending for a NEW amount — the shown Receive figure is stale;
+  // dim it (CSS) instead of unmounting the card, which flashed per keystroke
+  $('#amt-receive')?.classList.add('stale');
   clearTimeout(amtQuoteTimer);
   amtQuoteTimer = setTimeout(async () => {
     const run = ++amtQuoteRun;
@@ -5134,6 +5156,7 @@ function paintSwapMeta() {
   // Receive card (widget shots 6–8): destination token + priced amount +
   // network mark — only while a LIVE quote backs the numbers (PO fix F)
   if (rcv) {
+    rcv.classList.remove('stale');
     const out = q?.amountOut;
     const outSym = out ? (out.symbol || p.destination?.symbol || '') : '';
     if (out && Number(out.crypto) > 0) {
@@ -5380,7 +5403,7 @@ function renderTokenRows() {
   // a still-rate-less row's slot is EMPTY — never $0.00. Derived per paint so
   // wallet/account switches and Refresh need no reset bookkeeping.
   const ratesLoading = !sdk.balances.some((x) => Number(x?.exchangeRate) > 0);
-  list.innerHTML = rows.map((b) => {
+  const rowsHtml = rows.map((b) => {
     const usable = sessionAccepts(b);
     const why = usable ? '' : ineligibleCopy(b);
     // formatted.fiatValue is BARE ("48.62", no symbol) — the page adds the $.
@@ -5402,9 +5425,15 @@ function renderTokenRows() {
       + '<span class="fiat">' + esc((compactBal(b) + ' ' + (b.symbol || '')).trim()) + '</span></div>'
       + '<span class="rchev">›</span></div></div>';
   }).join('') || '<div class="tok-empty">No balances on this wallet.</div>';
+  // identical rows → skip the rewrite (same anti-blink guard as the picker:
+  // CDN logo imgs re-decode on every innerHTML swap)
+  if (rowsHtml === tokRowsCache) return;
+  tokRowsCache = rowsHtml;
+  list.innerHTML = rowsHtml;
   list.dataset.sorted = '1';
   assignTabIndexes(list);
 }
+let tokRowsCache = '';
 
 /* ---------------- summary ---------------- */
 
