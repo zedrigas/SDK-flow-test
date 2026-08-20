@@ -2119,7 +2119,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.27</span>
+    <span class="db-ver">v20.28</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -3509,8 +3509,10 @@ const ACTIONS = {
     const key = el.dataset.key;
     const b = sdk.balances.find((x) => tokenKey(x) === key);
     if (!b) return;
-    if (!sessionAccepts(b)) {
-      demoToast('Not available', b.symbol + ' on ' + b.network + ' — ' + (ineligibleCopy(b) || 'not accepted on this session') + '.', 5000);
+    if (!sessionAccepts(b) || noRouteKeys.has(key)) {
+      // a second tap on a landed no-route token tells the truth (PO D6)
+      demoToast('Not available', b.symbol + ' on ' + b.network + ' — '
+        + (noRouteKeys.has(key) ? 'this session has no route for it' : (ineligibleCopy(b) || 'not accepted on this session')) + '.', 5000);
       return;
     }
     sdk.token = b;
@@ -3725,7 +3727,7 @@ const ACTIONS = {
   // documented recovery is restartSession(), never "go get a new link".
   async 'session-restart'() {
     if (!(await restartSdkSession())) return;
-    methodsCache = null; installedCache = null;
+    methodsCache = null; installedCache = null; noRouteKeys.clear();
     renderPicker();
     if (sdk.connection) openAmountSdk();
     else go('picker');
@@ -4655,6 +4657,7 @@ function gatewayDownCopy() {
 
 async function onSdkConnected(conn, { open = true } = {}) {
   sdk.connection = conn;
+  noRouteKeys.clear(); // routes are per wallet+session — a new connection re-learns
   // the picker's Recent chip = the last wallet that really connected here
   try { localStorage.setItem('nova-recent-wallet', connProvider(conn)); } catch { /* private mode */ }
   // WalletConnection carries accounts[], not a flat `address`.
@@ -4924,6 +4927,12 @@ async function resolvePlan() {
     if (run !== planRun) return;
     sdk.plan = plan;
     harvestNetArt(plan?.bridgeDestinations); // chain art rides plan bridge data
+    // a LANDED no-route verdict marks the token for the drawer (PO D6);
+    // resolve ERRORS never cache — a network blip is not a missing route
+    if (sdk.token && (plan?.flow === 'unavailable' || !plan?.destination
+      || ((plan.flow === 'swap' || plan.flow === 'bridge') && !plan.destination?.address))) {
+      noRouteKeys.add(tokenKey(sdk.token));
+    }
     const min = await R.swapped.transfer.minAmount(sdk.plan).catch(() => null);
     if (run !== planRun) return;
     sdk.min = min;
@@ -4937,12 +4946,17 @@ async function resolvePlan() {
   revalidateAmount();
 }
 
+/** Tokens a LANDED plan declared route-less on this session — the drawer row
+    must tell the truth on reopen, not flip only after selection (PO D6). */
+const noRouteKeys = new Set();
 /** A plan can come back "resolved" and still be unusable — check the flow. */
 function planUnusable() {
   const p = sdk.plan;
   if (!p) return 'This token cannot reach the merchant on this session.';
   if (p.flow === 'unavailable' || !p.destination) {
-    return p.issues?.[0]?.message || p.reason || 'No route from this token to the merchant.';
+    // friendly guidance, never plan.issues[].message raw ("No session
+    // withdraw wallet…" is the v20.8 planner leak resurfacing — PO D6)
+    return 'This session has no route for ' + (sdk.token?.symbol || 'this token') + '. Pick another token.';
   }
   // A swap/bridge whose destination has NO session wallet address has nowhere
   // to pay into — that is the one case where NO_SESSION_WALLET truly blocks.
@@ -5422,8 +5436,11 @@ function renderTokenRows() {
   // USD value is nothing to spend. 0.001 ETH still shows; "0 SYMBOL" never.
   const worthShowing = (b) => usdOf(b) >= 0.005 || fiatOf(b) >= 0.005
     || parseFloat(String(compactBal(b)).replace(/,/g, '')) > 0;
+  // usable = the session accepts it AND no landed plan has declared it
+  // route-less (PO D6 — the row must not flip only after selection)
+  const usableRow = (x) => !!sessionAccepts(x) && !noRouteKeys.has(tokenKey(x));
   const rows = sdk.balances.filter(worthShowing).sort((a, b) => {
-    const ua = Number(!!sessionAccepts(a)), ub = Number(!!sessionAccepts(b));
+    const ua = Number(usableRow(a)), ub = Number(usableRow(b));
     if (ua !== ub) return ub - ua;
     if (!(Number(a.exchangeRate) > 0) && !(Number(b.exchangeRate) > 0)) {
       return Number(b.displayBalance || 0) - Number(a.displayBalance || 0);
@@ -5439,8 +5456,8 @@ function renderTokenRows() {
   // wallet/account switches and Refresh need no reset bookkeeping.
   const ratesLoading = !sdk.balances.some((x) => Number(x?.exchangeRate) > 0);
   const rowsHtml = rows.map((b) => {
-    const usable = sessionAccepts(b);
-    const why = usable ? '' : ineligibleCopy(b);
+    const usable = usableRow(b);
+    const why = usable ? '' : (ineligibleCopy(b) || 'Not supported');
     // formatted.fiatValue is BARE ("48.62", no symbol) — the page adds the $.
     // A "0.00" formatted value paints as $0.00 junk — treat it as no value.
     const fmtFiat = parseFloat(String(b.formatted?.fiatValue || '').replace(/,/g, '')) > 0
