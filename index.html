@@ -970,10 +970,13 @@ img.coin { border-radius: 50%; }
 #wl-summary[data-skin="wg"] .sum-breakdown .kv .k, #wl-xpay[data-skin="wg"] .sum-breakdown .kv .k, #wl-cb-confirm[data-skin="wg"] .sum-breakdown .kv .k { color: var(--wg-label); font: 500 14px/18px var(--font-wg); }
 #wl-summary[data-skin="wg"] .sum-breakdown .kv .v, #wl-xpay[data-skin="wg"] .sum-breakdown .kv .v, #wl-cb-confirm[data-skin="wg"] .sum-breakdown .kv .v { display: flex; align-items: center; gap: 6px; color: var(--wg-body); font: 500 14px/18px var(--font-wg); }
 #wl-summary[data-skin="wg"] .sum-breakdown .kv .v .bd-coin, #wl-xpay[data-skin="wg"] .sum-breakdown .kv .v .bd-coin, #wl-cb-confirm[data-skin="wg"] .sum-breakdown .kv .v .bd-coin { width: 16px; height: 16px; }
+/* banner sits fully ABOVE the CTA with a real gap (PO D2, frame 6411:88900) —
+   the old tuck fused both into one two-tone lump (same fix as the login
+   banner in v20.22) */
 .sum-banner {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   background: #c94f4f; color: #fff; font: 500 12px/16px var(--font-wg);
-  border-radius: 12px 12px 0 0; padding: 6px 12px 22px; margin-bottom: -16px; width: 100%;
+  border-radius: 12px; padding: 6px 12px; margin-bottom: 12px; width: 100%;
 }
 .sum-banner.info {
   background: var(--wg-chip);
@@ -2113,7 +2116,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.25</span>
+    <span class="db-ver">v20.26</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
