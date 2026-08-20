@@ -2113,7 +2113,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.24</span>
+    <span class="db-ver">v20.25</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
@@ -4917,6 +4917,7 @@ async function resolvePlan() {
     // amount card). Only the newest resolve may write.
     if (run !== planRun) return;
     sdk.plan = plan;
+    harvestNetArt(plan?.bridgeDestinations); // chain art rides plan bridge data
     const min = await R.swapped.transfer.minAmount(sdk.plan).catch(() => null);
     if (run !== planRun) return;
     sdk.min = min;
@@ -5170,7 +5171,7 @@ function paintSwapMeta() {
       const tok = $('#rcv-token');
       if (tok) {
         tok.innerHTML = '<span class="tok-ico">' + tokenArt({ symbol: outSym })
-          + (net ? '<span class="tok-net" title="' + esc(net) + '">' + esc(netBadge(net)) + '</span>' : '')
+          + (net ? '<span class="tok-net" title="' + esc(net) + '">' + netBadgeHtml(net) + '</span>' : '')
           + '</span><span class="sym">' + esc(outSym) + '</span>';
       }
       rcv.hidden = false;
@@ -5317,6 +5318,34 @@ function updateAmountSdk(forceMsg) {
 
 /* ---------------- token drawer ---------------- */
 
+/** network → chain-art URL, learned from data already in the page: the
+    native row's token logo (the chain's canonical mark — the details sheet's
+    own trick since v20.17) plus blockchainImage entries harvested from plan
+    bridge data (WalletTransferSupportedCurrency). Letters stay the fallback
+    for networks with no art (PO D4). */
+const netArtMap = Object.create(null);
+function harvestNetArt(list) {
+  (list || []).forEach((c) => {
+    if (c?.network && c.blockchainImage && !netArtMap[c.network]) netArtMap[c.network] = c.blockchainImage;
+  });
+}
+function netArt(n) {
+  if (!n) return '';
+  if (!netArtMap[n]) {
+    const native = (sdk.balances || []).find((b) => b.network === n && !b.tokenAddress && (b.logo || b.thumbnail));
+    if (native) netArtMap[n] = native.logo || native.thumbnail;
+  }
+  return netArtMap[n] || '';
+}
+/** Badge INNER markup: real chain art when known, the letter glyph otherwise.
+    The img carries its own size — an unconstrained img floods the sheet
+    (shot-25 lesson); 100% fills whatever .tok-net disc wraps it. */
+function netBadgeHtml(n) {
+  const art = netArt(n);
+  return art
+    ? '<img src="' + esc(art) + '" alt="" style="width:100%;height:100%;display:block">'
+    : esc(netBadge(n));
+}
 /** One-glyph network mark for the badge — it must read inside an 11px circle. */
 function netBadge(n) {
   // The SDK knows every network's label, so the glyph comes from its config
@@ -5418,7 +5447,7 @@ function renderTokenRows() {
       + ' data-key="' + esc(tokenKey(b)) + '"' + (usable ? '' : ' aria-disabled="true"') + '>'
       + '<div class="l"><span class="tok-ico">'
       + tokenArt(b)
-      + (b.network ? '<span class="tok-net" title="' + esc(b.network) + '">' + esc(netBadge(b.network)) + '</span>' : '')
+      + (b.network ? '<span class="tok-net" title="' + esc(b.network) + '">' + netBadgeHtml(b.network) + '</span>' : '')
       + '</span>'
       + '<div><div class="sym">' + esc(b.symbol) + '</div><div class="nm">' + esc(why || b.name || b.network) + '</div></div></div>'
       + '<div class="r"><div class="vals"><span class="amt">' + top + '</span>'
