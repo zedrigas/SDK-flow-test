@@ -853,9 +853,12 @@ img.coin { border-radius: 50%; }
 .amt-banner[hidden] { display: none; }
 .amt-banner svg { width: 12px; height: 12px; flex: 0 0 12px; }
 #wl-amount[data-skin="wg"] .amt-login-retry { background: var(--wg-cta); font-family: var(--font-wg); }
-/* over-cap (error banner up, Figma 6411:88928) keeps the CTA opaque — but the
-   plain $0 pre-entry state must still LOOK disabled (rubric item 5/23) */
-#wl-amount[data-skin="wg"]:has(#amt-banner:not([hidden])) .wl-cta.disabled { opacity: 1; }
+/* A dead Continue must LOOK dead in EVERY banner state (PO D3, shot 19):
+   the cb sheet's designed disabled treatment — grey well + helper text —
+   replaces the old opacity game (an over-cap :has(banner) override kept the
+   disabled CTA fully live-blue). Enabled stays untouched Stake blue. */
+#wl-amount[data-skin="wg"] #amt-cta.disabled { background: var(--wg-chip); opacity: 1; }
+#wl-amount[data-skin="wg"] #amt-cta.disabled::before { color: var(--wg-helper); }
 /* app.js sets #amt-cta's textContent to "Deposit $X.XX" live (verify.mjs asserts this
    behavior) but Figma 6411:88879 renders a static, content-agnostic "Continue" label —
    override the paint only, leave the underlying text node untouched. */
@@ -2116,7 +2119,7 @@ JavaScript is blocked in this browser. In Brave: click the lion icon and allow s
 
   <div id="demobar">
     <span class="db-brand">FLOW FEEL TEST</span>
-    <span class="db-ver">v20.26</span>
+    <span class="db-ver">v20.27</span>
     <span class="db-flow" id="db-flow"></span>
     <span class="db-sep"></span>
     <button class="db-rpc" id="db-session" type="button" data-action="session-chip" title="Swapped session state">SESSION …</button>
